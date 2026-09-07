@@ -1,0 +1,35 @@
+{
+	"name": "omarchy-themes-registry",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"import": "node scripts/import-existing.ts",
+		"validate": "node scripts/validate.ts",
+		"build": "node scripts/build-catalog.ts",
+		"check": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run",
+		"lint": "prettier --check . && eslint .",
+		"format": "prettier --write ."
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@types/node": "^26.4.1",
+		"eslint": "^10.10.0",
+		"eslint-config-prettier": "^10.1.8",
+		"globals": "^17.12.0",
+		"prettier": "^3.9.6",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.69.0",
+		"vitest": "^5.0.0"
+	},
+	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1127.0",
+		"@omarchy-themes/schema": "workspace:*",
+		"@omarchy-themes/validator": "workspace:*",
+		"sharp": "^0.35.4"
+	}
+}
