@@ -1,0 +1,61 @@
+name: Validate themes
+
+on:
+  pull_request:
+    paths:
+      - 'themes/**'
+      - 'overrides/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+
+      - name: Validate changed entries
+        id: validate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          node scripts/validate.ts --changed > report.md
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('report.md', 'utf8').trim();
+            if (!body) return;
+            const marker = '<!-- omarchy-themes-validation -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number, per_page: 100
+            });
+            const mine = comments.find(c => c.body?.includes(marker));
+            const full = `${marker}\n${body}`;
+            if (mine) await github.rest.issues.updateComment({ ...context.repo, comment_id: mine.id, body: full });
+            else await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body: full });
+
+      - name: Fail on errors
+        if: steps.validate.outputs.status != '0'
+        run: exit 1
