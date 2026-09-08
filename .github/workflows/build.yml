@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 60
     environment: R2-dev # holds CDN_BASE_URL/R2_BUCKET vars and the R2_* secrets; swap for prod later
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
