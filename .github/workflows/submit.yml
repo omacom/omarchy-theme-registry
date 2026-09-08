@@ -1,0 +1,139 @@
+name: Submission
+
+# Issue-driven submissions: an issue from the "Submit a theme" form (label `submission`) is
+# validated, gets a report comment, and — when green — a PR adding themes/<slug>.json.
+# Commenting `/recheck` on the issue re-runs everything.
+#
+# Uses SUBMIT_TOKEN (a GitHub App or fine-grained PAT with contents/issues/pull-requests write)
+# when set, so the PR it opens triggers the normal `validate-pr` checks. With the default
+# GITHUB_TOKEN the PR is still opened, but workflows do not run on it.
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: submission-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  submit:
+    if: >-
+      contains(github.event.issue.labels.*.name, 'submission') &&
+      !github.event.issue.pull_request &&
+      (
+        github.event_name == 'issues' ||
+        (
+          startsWith(github.event.comment.body, '/recheck') &&
+          (
+            github.event.comment.user.login == github.event.issue.user.login ||
+            contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+          )
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ secrets.SUBMIT_TOKEN || secrets.GITHUB_TOKEN }}
+      ISSUE: ${{ github.event.issue.number }}
+      SUBMITTER: ${{ github.event.issue.user.login }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.SUBMIT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Ensure labels exist
+        run: |
+          gh label create submission    --color 0e8a16 --description 'Theme submission from the issue form' --force
+          gh label create validated     --color 0e8a16 --description 'Validation passed; PR opened' --force
+          gh label create needs-changes --color d93f0b --description 'Validation failed; author must fix the repo' --force
+          gh label create auto-approve  --color 5319e7 --description 'Submitter owns the repo; safe to merge on green' --force
+          gh label create published     --color 1d76db --description 'Merged and in the catalog' --force
+
+      - name: Validate submission
+        id: validate
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$ISSUE_BODY" > body.md
+          node scripts/submit.ts --issue-body-file body.md --submitted-by "$SUBMITTER" --write --json > result.json
+          jq -r .markdown result.json > report.md
+          {
+            echo "ok=$(jq -r .ok result.json)"
+            echo "slug=$(jq -r '.slug // empty' result.json)"
+            echo "name=$(jq -r '.name // empty' result.json)"
+            echo "owner=$(jq -r .owner_verified result.json)"
+          } >> "$GITHUB_OUTPUT"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report on the issue
+        run: |
+          {
+            echo '<!-- omarchy-themes-submission -->'
+            cat report.md
+          } > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
+
+      - name: Label as needs-changes
+        if: steps.validate.outputs.ok != 'true'
+        run: gh issue edit "$ISSUE" --remove-label validated,auto-approve --add-label needs-changes
+
+      - name: Open or update the pull request
+        if: steps.validate.outputs.ok == 'true'
+        env:
+          SLUG: ${{ steps.validate.outputs.slug }}
+          NAME: ${{ steps.validate.outputs.name }}
+          OWNER: ${{ steps.validate.outputs.owner }}
+        run: |
+          git config user.name 'omarchy-themes-bot'
+          git config user.email 'omarchy-themes-bot@users.noreply.github.com'
+          BRANCH="submit/$SLUG"
+          git checkout -B "$BRANCH"
+          git add themes/
+          git commit -m "Add theme: $NAME ($SLUG)" -m "Submitted by @$SUBMITTER in #$ISSUE"
+          git push --force origin "$BRANCH"
+
+          {
+            echo "Closes #$ISSUE"
+            echo
+            echo "Adds \`themes/$SLUG.json\` for \`$NAME\`, submitted by @$SUBMITTER."
+            if [ "$OWNER" = 'true' ]; then
+              echo 'The submitter owns the repository.'
+            else
+              echo 'The submitter could not be verified as the repository owner; check before merging.'
+            fi
+            echo
+            cat report.md
+          } > pr.md
+
+          PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -n "$PR" ]; then
+            gh pr edit "$PR" --body-file pr.md
+            gh pr comment "$PR" --body 'Re-validated after `/recheck`; the branch and description were updated.'
+          else
+            PR=$(gh pr create --head "$BRANCH" --base master --title "Add theme: $NAME ($SLUG)" --body-file pr.md --label submission | grep -oE '[0-9]+$')
+          fi
+
+          if [ "$OWNER" = 'true' ]; then
+            gh pr edit "$PR" --add-label auto-approve
+            gh issue edit "$ISSUE" --remove-label needs-changes --add-label validated,auto-approve
+          else
+            gh pr edit "$PR" --remove-label auto-approve
+            gh issue edit "$ISSUE" --remove-label needs-changes,auto-approve --add-label validated
+          fi
+          gh issue comment "$ISSUE" --body "Pull request opened: #$PR. A maintainer will merge it and your theme goes live with the next catalog build."

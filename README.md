@@ -24,6 +24,25 @@ That is the whole entry. Mode, palette, author, preview, license and everything 
 
 Slugs are first-come: the first merged entry keeps the name, and the 22 built-in Omarchy themes are reserved.
 
+### Submitting a theme
+
+Authors do not write the entry by hand. Open a [**Submit a theme**](../../issues/new?template=submit-theme.yml) issue with the repo URL (the site's submit form does the same thing). Then:
+
+1. `submit.yml` validates the repo the way the catalog build does and comments the report on the issue.
+2. Green: it writes `themes/<slug>.json`, opens a PR from `submit/<slug>` that closes the issue, and labels both `validated`. If the issue author owns the repo (or is a public member of the owning org) the PR also gets `auto-approve`.
+3. Red: the issue is labelled `needs-changes`. The author fixes the repo and comments `/recheck` (the author, or a maintainer, can do this); the entry and PR are refreshed in place.
+4. A maintainer merges the PR. `build.yml` publishes the catalog, and `published.yml` tells the author on the issue, labels it `published`, and deletes the branch.
+
+A repo that is already listed is rejected with `ALREADY_LISTED`; the catalog follows each repo's default branch, so updates never need a new submission.
+
+**Maintainer runbook**
+
+- The queue is [open PRs labelled `auto-approve`](../../pulls?q=is%3Apr+is%3Aopen+label%3Aauto-approve): read the report in the PR body, glance at the preview, merge. PRs labelled `submission` without `auto-approve` were sent by someone other than the repo owner; check the author is fine with the listing before merging.
+- Never edit the entry in a submission PR by hand; comment `/recheck` on the issue instead so the branch is regenerated.
+- To change the display name, tags, or featured status after publishing, open a normal PR against `themes/` or `overrides/`.
+- To reject, close the issue; the PR can be closed too. To remove a published theme, add it to `overrides/hidden.json`.
+- Optional: set a `SUBMIT_TOKEN` repository secret (fine-grained PAT or GitHub App token with contents, issues and pull-requests write) so the PRs the bot opens trigger `validate-pr.yml`. With the default `GITHUB_TOKEN` they do not, which is fine: the same validator already ran on the issue.
+
 ### Curator overrides
 
 - `overrides/featured.json` — array of slugs shown as featured.
@@ -62,12 +81,15 @@ pnpm test                                    # validator unit tests
 GITHUB_TOKEN=$(gh auth token) pnpm validate https://github.com/owner/omarchy-x-theme
 GITHUB_TOKEN=$(gh auth token) pnpm build     # full catalog → dist/v1 (clones every repo; cached in .work/)
 node scripts/upload.ts --dry-run             # what would go to R2
+GITHUB_TOKEN=$(gh auth token) node scripts/submit.ts --repo https://github.com/owner/omarchy-x-theme --submitted-by owner   # dry-run a submission (--write to create the entry)
 ```
 
 `scripts/import-existing.ts` was used once to seed the registry from `omacom/omarchy-site`.
 
 ## Automation
 
+- **`submit.yml`** — on `submission` issues and `/recheck` comments: validates the repo, comments the report, opens or refreshes the `submit/<slug>` PR.
+- **`published.yml`** — when a `submit/<slug>` PR is merged: notifies and closes the issue, deletes the branch.
 - **`validate-pr.yml`** — on PRs touching `themes/` or `overrides/`: validates changed entries and comments the report.
 - **`build.yml`** — on push to `master` and every 6 hours: rebuilds the catalog, uploads changed objects to R2, commits `state/liveness.json`.
 - **`ci.yml`** — lint, type-check, tests for code changes.

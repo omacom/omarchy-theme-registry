@@ -1,0 +1,33 @@
+name: Submission published
+
+# When a submission PR (branch submit/<slug>) is merged, tell the author on the issue,
+# label it, and remove the branch. The catalog itself is rebuilt by build.yml on the push.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  notify:
+    if: github.event.pull_request.merged && startsWith(github.event.pull_request.head.ref, 'submit/')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REF: ${{ github.event.pull_request.head.ref }}
+      BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - name: Notify the submission issue
+        run: |
+          SLUG="${REF#submit/}"
+          ISSUE=$(printf '%s' "$BODY" | grep -oiE 'closes #[0-9]+' | head -1 | grep -oE '[0-9]+' || true)
+          if [ -n "$ISSUE" ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label validated,auto-approve,needs-changes --add-label published
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Published. Your theme will be at https://themes.omarchy.org/themes/$SLUG within a few minutes, once the catalog rebuilds. It follows your default branch from now on, so pushes to the repo update the listing automatically."
+            gh issue close "$ISSUE" --repo "$GITHUB_REPOSITORY" || true
+          fi
+      - name: Delete the submission branch
+        run: gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$REF" || true

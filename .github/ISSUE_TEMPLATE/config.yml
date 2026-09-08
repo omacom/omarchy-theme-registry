@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Making a theme
+    url: https://omarchy.org/manual/making-your-own-theme/
+    about: How Omarchy themes are structured, before you submit one.

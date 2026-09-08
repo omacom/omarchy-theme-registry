@@ -130,6 +130,19 @@ export class GithubClient {
 		};
 	}
 
+	/**
+	 * Does `login` control `canonicalUrl`? True for the owning user, or a public member of the
+	 * owning org. Private org members come back false (GITHUB_TOKEN cannot see them), so a
+	 * false here means "not verified", not "not an owner".
+	 */
+	async controlsRepo(login: string, meta: RepoMeta): Promise<boolean> {
+		if (meta.owner.toLowerCase() === login.toLowerCase()) return true;
+		const res = await this.#get(
+			`/orgs/${encodeURIComponent(meta.owner)}/public_members/${encodeURIComponent(login)}`
+		);
+		return res.status === 204;
+	}
+
 	/** Latest tag (by commit date) or null. Used to prefer tagged releases when picking a SHA. */
 	async latestTag(canonicalUrl: string): Promise<{ name: string; sha: string } | null> {
 		const { owner, name } = repoOwnerAndName(canonicalUrl);

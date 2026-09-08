@@ -1,0 +1,37 @@
+name: Submit a theme
+description: List your Omarchy theme on themes.omarchy.org
+title: 'Submit: '
+labels: [submission]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing your theme. Validation runs automatically when you open this issue and
+        posts a report below. If it passes, a pull request is opened for you; once a maintainer
+        merges it the theme is live. If it fails, fix the repo and comment `/recheck`.
+
+        The theme must be a public GitHub repository with `colors.toml`, `backgrounds/` and
+        `preview.png` at its root — see [what the validator checks](https://themes.omarchy.org/docs/validation).
+  - type: input
+    id: repo
+    attributes:
+      label: Repository URL
+      description: The install URL, exactly as you would pass it to `omarchy theme install`.
+      placeholder: https://github.com/you/omarchy-yourtheme-theme
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Theme name
+      description: Display name on the site. Defaults to the repository name if left empty.
+      placeholder: Your Theme
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: The preview and backgrounds contain no personal information (usernames, private windows, etc.).
+          required: true
+        - label: I made this theme, or have permission to list it and its wallpapers.
+          required: true
