@@ -5,7 +5,9 @@ import {
 	HUES,
 	MODES,
 	PALETTE_KEYS,
-	SLUG_RE
+	SLUG_RE,
+	TAG_RE,
+	MAX_TAGS
 } from './constants.ts';
 
 export * from './constants.ts';
@@ -39,10 +41,7 @@ export const RegistryEntry = z.strictObject({
 	name: z.string().trim().min(1).max(60),
 	submitted_by: z.union([GithubLogin, z.literal('import')]),
 	added_at: isoDate,
-	tags: z
-		.array(z.string().regex(/^[a-z0-9-]{2,24}$/))
-		.max(5)
-		.optional()
+	tags: z.array(z.string().regex(TAG_RE)).max(MAX_TAGS).optional()
 });
 export type RegistryEntry = z.infer<typeof RegistryEntry>;
 

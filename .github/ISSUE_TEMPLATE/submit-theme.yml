@@ -12,12 +12,15 @@ body:
 
         The theme must be a public GitHub repository with `colors.toml`, `backgrounds/` and
         `preview.png` at its root — see [what the validator checks](https://themes.omarchy.org/docs/validation).
+
+        The repository's description and topics show up on the theme page: set a one-line description,
+        and add descriptive topics (e.g. `warm`, `neon`, `anime`, `minimal`) — they become the theme's tags.
   - type: input
     id: repo
     attributes:
       label: Repository URL
       description: The install URL, exactly as you would pass it to `omarchy theme install`.
-      placeholder: https://github.com/you/omarchy-yourtheme-theme
+      placeholder: https://github.com/user/omarchy-yourtheme-theme
     validations:
       required: true
   - type: input

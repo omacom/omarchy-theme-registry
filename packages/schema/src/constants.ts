@@ -169,3 +169,71 @@ export const CATALOG_SCHEMA_VERSION = 1;
 
 /** Minimum Omarchy version the catalog's install semantics assume. */
 export const OMARCHY_MIN_VERSION = '4.0.0';
+
+/** Catalog tags are derived from GitHub repo topics; these say nothing about the look. */
+export const TAG_DENYLIST = new Set([
+	'omarchy',
+	'omarchy-theme',
+	'omarchy-themes',
+	'theme',
+	'themes',
+	'color-scheme',
+	'colorscheme',
+	'colour-scheme',
+	'palette',
+	'linux',
+	'arch',
+	'archlinux',
+	'arch-linux',
+	'hyprland',
+	'wayland',
+	'waybar',
+	'walker',
+	'gtk',
+	'qt',
+	'neovim',
+	'nvim',
+	'alacritty',
+	'kitty',
+	'ghostty',
+	'foot',
+	'btop',
+	'mako',
+	'swayosd',
+	'dotfiles',
+	'rice',
+	'ricing',
+	'desktop',
+	'wallpaper',
+	'wallpapers',
+	'dark',
+	'light',
+	'dark-theme',
+	'light-theme',
+	'dark-mode',
+	'light-mode',
+	'quattro',
+	'screensaver',
+	'css',
+	'config',
+	'configs',
+	'terminal',
+	'shell',
+	'editor',
+	'vscode',
+	'obsidian',
+	'chromium',
+	'typora',
+	'tmux',
+	'zsh',
+	'bash',
+	'fish',
+	'starship',
+	'gnome',
+	'kde'
+]);
+/** Any topic containing one of these is platform boilerplate, whatever surrounds it. */
+export const TAG_DENY_PATTERN =
+	/omarchy|hyprland|linux|ric(e|ing)|wallpaper|dotfile|wayland|waybar/;
+export const TAG_RE = /^[a-z0-9-]{2,24}$/;
+export const MAX_TAGS = 5;

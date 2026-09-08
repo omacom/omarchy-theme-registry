@@ -21,3 +21,4 @@ export { GithubClient, type RepoMeta } from './github.ts';
 export { cloneRepo, type Checkout } from './clone.ts';
 export { validateTheme, reportToMarkdown, type ValidateOptions } from './validate.ts';
 export { parseIssueForm, ISSUE_FORM_FIELDS, type IssueFormFields } from './issue-form.ts';
+export { deriveTags, normalizeTag } from './tags.ts';

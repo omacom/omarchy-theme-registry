@@ -12,15 +12,15 @@ Add `themes/<slug>.json`, where `<slug>` is what Omarchy derives from the repo n
 
 ```json
 {
-	"slug": "nujabes",
-	"repo": "https://github.com/HalmyLyseas/omarchy-nujabes-theme",
-	"name": "Nujabes",
-	"submitted_by": "HalmyLyseas",
+	"slug": "sunset-drive",
+	"repo": "https://github.com/tahayvr/omarchy-sunset-drive-theme",
+	"name": "Sunset Drive",
+	"submitted_by": "tahayvr",
 	"added_at": "2026-09-07"
 }
 ```
 
-That is the whole entry. Mode, palette, author, preview, license and everything else is read from the theme repo itself, so there is nothing to keep in sync. Opening a PR runs the validator against the repo and posts the report on the PR; entries with errors cannot be merged.
+That is the whole entry. Mode, palette, author, preview, license and everything else is read from the theme repo itself, so there is nothing to keep in sync. Tags come from the repo's GitHub topics (boilerplate like `omarchy-theme`, `hyprland` or `dark` is dropped, see `TAG_DENYLIST`); the optional `tags` array in the entry is for curator additions and goes first. Opening a PR runs the validator against the repo and posts the report on the PR; entries with errors cannot be merged.
 
 Slugs are first-come: the first merged entry keeps the name, and the 22 built-in Omarchy themes are reserved.
 

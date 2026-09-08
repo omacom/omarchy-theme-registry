@@ -28,7 +28,13 @@ import {
 	type RegistryEntry,
 	type ValidationReport
 } from '@omarchy-themes/schema';
-import { GithubClient, cloneRepo, validateTheme, type RepoMeta } from '@omarchy-themes/validator';
+import {
+	GithubClient,
+	cloneRepo,
+	validateTheme,
+	type RepoMeta,
+	deriveTags
+} from '@omarchy-themes/validator';
 import {
 	CDN_BASE_URL,
 	DIST_DIR,
@@ -263,7 +269,7 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 		pushed_at: meta.pushedAt,
 		stars: meta.stars,
 		added_at: entry.added_at,
-		tags: entry.tags ?? [],
+		tags: deriveTags({ topics: meta.topics, entryTags: entry.tags, slug }),
 		featured: overrides.featured.includes(slug),
 		warnings: report.warnings.map((w) => w.code),
 		install: `omarchy theme install ${entry.repo}`
