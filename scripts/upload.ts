@@ -23,6 +23,7 @@ const client = dryRun
 	? null
 	: new S3Client({
 			region: 'auto',
+			maxAttempts: 5,
 			endpoint: `https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
 			credentials: {
 				accessKeyId: env('R2_ACCESS_KEY_ID'),
@@ -52,7 +53,7 @@ files.sort((a, b) => Number(a.endsWith('.json')) - Number(b.endsWith('.json')));
 
 let uploaded = 0;
 let skipped = 0;
-await mapLimit(files, 16, async (abs) => {
+await mapLimit(files, 8, async (abs) => {
 	const key = relative(DIST_DIR, abs).split('\\').join('/');
 	const body = await readFile(abs);
 	const md5 = createHash('md5').update(body).digest('hex');
