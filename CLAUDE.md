@@ -1,0 +1,37 @@
+# Omarchy Theme Registry
+
+Source of truth for the community themes listed on **themes.omarchy.org**. One small JSON file per theme goes in (`themes/<slug>.json`), a validated catalog and processed preview images come out and are uploaded to Cloudflare R2. The website (`../omarchy-marketplace-site`, Rails) and later the Omarchy CLI only ever read the published catalog; nothing here talks to the site's database.
+
+## Working rules
+
+- **Never `git commit` or `git push`.** Leave changes in the working tree and report them; the user reviews and commits. Applies to every repo in this project.
+- Branch is `master` (no `main`). Workflows and `validate.ts --changed` diff against `origin/master`.
+- **`preview.png` at the repo root is mandatory** (`PREVIEW_MISSING` is an error). Omarchy's theme switcher shows that exact file, so the site must too; never add fallbacks to wallpapers or other images.
+- Never write the R2 dev URL (`pub-*.r2.dev`) into README, examples, docs or code. It lives only in the gitignored `.env` and the GitHub environment `R2-dev` (`CDN_BASE_URL`, `R2_BUCKET`, `R2_*` secrets).
+- TypeScript is pinned to 6.x because typescript-eslint does not support 7 yet; do not bump it.
+- Mirror Omarchy, don't reinvent: slug derivation, denied-on-install files, background extensions and palette keys are copied from `omacom/omarchy` into `packages/schema/src/constants.ts`. Change behaviour there, with a test.
+- If files change on disk from outside the session, say so and wait for instructions rather than fixing them.
+
+## Layout
+
+- `packages/schema` — Zod schemas and constants: `RegistryEntry`, `Overrides`, `CatalogTheme`/`Catalog`, `ValidationReport`, `TAG_DENYLIST`/`TAG_DENY_PATTERN`, size limits, built-in theme names.
+- `packages/validator` — `validateTheme` (errors block, warnings publish), `deriveSlug`/`canonicalRepoUrl`, palette parsing and hue bucketing, repo inspection, `GithubClient` (retries, `controlsRepo` for ownership), `cloneRepo`, `parseIssueForm`, `deriveTags` (catalog tags from GitHub topics minus boilerplate), `reportToMarkdown`. Tests in `packages/validator/test` (vitest).
+- `scripts/` — `validate.ts` (a URL, a slug, or `--changed`), `submit.ts` (issue form or flags → validated entry, `--write --json`), `build-catalog.ts` (clones every repo at default-branch HEAD, validates, renders WebP previews, writes `dist/v1/…`, keeps last-good entries, liveness strikes), `upload.ts` (R2 via S3 API, immutable preview keys), `lib.ts` (paths, `CDN_BASE_URL`, registry/overrides loaders).
+- `themes/*.json` entries; `overrides/featured.json` + `hidden.json` (curator-only, see `overrides/README.md`); `state/liveness.json` (bot-committed strike counts, see `state/README.md`).
+- Published catalog: `/v1/catalog.json`, `catalog.min.json`, `catalog.json.sha256`, `themes/<slug>.json`, `previews/<slug>/<sha>/{1200,480}.webp`, `report.json`.
+
+## Automation (`.github/workflows`)
+
+- `submit.yml` — issues from the "Submit a theme" form (label `submission`) and `/recheck` comments: validate, comment the report, on green write the entry and open/refresh a `submit/<slug>` PR (`auto-approve` when the submitter owns the repo). Uses `SUBMIT_TOKEN` if set so the PR triggers checks; with `GITHUB_TOKEN` it does not.
+- `published.yml` — when a `submit/<slug>` PR merges: notify and close the issue, label `published`, delete the branch.
+- `validate-pr.yml` — PRs touching `themes/` or `overrides/`: validate changed entries, comment the report.
+- `build.yml` — on push to master, every 6 h, and on dispatch: build, upload to R2, commit `state/`. Runs in the `R2-dev` environment.
+- `ci.yml` — lint, type-check, tests.
+
+The `submission` label must exist before the first issue arrives (the workflow creates the others).
+
+## Commands
+
+`just` lists everything; `just ci` = lint + type-check + tests (same as `ci.yml`). `just validate <url|slug>`, `just submit <repo> <login>`, `just build`, `just upload-dry`. The justfile loads `.env` and takes `GITHUB_TOKEN` from `gh auth token` when unset. Node 24 runs `.ts` directly; pnpm 12 workspace; `pnpm format` before checking lint.
+
+A full build clones every repo (cached in `.work/`) and takes minutes; use `validate`/`submit` for single repos.

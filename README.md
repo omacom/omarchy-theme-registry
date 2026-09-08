@@ -1,16 +1,60 @@
-# Omarchy Themes Registry
+# Omarchy Theme Registry
 
-The source of truth for community themes listed on [themes.omarchy.org](https://themes.omarchy.org). One small JSON file per theme goes in, a validated, versioned catalog comes out.
+The list of community themes behind [themes.omarchy.org](https://themes.omarchy.org). Every theme here is a public GitHub repository that `omarchy theme install` can clone; this repo only records which ones are listed, checks them automatically, and publishes the catalog that the website reads.
 
+## Submit your theme
+
+1. Make a theme. The [Omarchy manual](https://omarchy.org/manual/making-your-own-theme/) has the full guide; the short version is a public GitHub repo named `omarchy-<name>-theme` with `colors.toml`, a `backgrounds/` folder and a 16:9 `preview.png` at its root.
+2. [**Submit a theme**](https://github.com/omacom/omarchy-theme-registry/issues/new?template=submit-theme.yml).
+3. Within a few minutes a bot comments a validation report on the issue.
+   - **Passed:** a pull request is opened for you and a maintainer merges it. Your theme is live shortly after, and the bot tells you on the issue.
+   - **Needs changes:** fix what the report lists in your repo, then comment `/recheck` on the issue. No need to open a new one.
+
+Once listed, the marketplace follows your repository's default branch: push changes and the listing updates on the next refresh (every six hours). Updates never need a new submission.
+
+### What gets checked
+
+The validator enforces what `omarchy theme install` enforces, plus a few things that make a good listing. Errors block; warnings are shown on your theme page as hints.
+
+**Errors** — repository missing or private; theme not at the repo root; symlinks; no palette (`colors.toml`, or a legacy `alacritty.toml` to derive from) or one missing required keys; no `preview.png` at the root, or narrower than 1000 px; images over 50 MB / 40 MP; repository over 400 MB; a name that is invalid, reserved by a built-in theme, or already taken (first come, first served).
+
+**Warnings** — archived repo; files Omarchy drops on install (`*.lua`, terminal configs, `vscode.json`); undeclared or conflicting `mode`; heavy or oddly named backgrounds, or backgrounds in other subfolders; no README or LICENSE; no `omarchy-theme` topic; unconventional repo name; scripts or binaries in the repo; unknown `icons.theme`.
+
+### What shows up on the theme page
+
+Everything comes from your repository, so keep it tidy there:
+
+- **Name** from the issue form (defaults to the repo name), **author** from the GitHub owner.
+- **Description** is the GitHub repository description.
+- **Tags** are your repository's GitHub topics, minus boilerplate such as `omarchy-theme`, `hyprland` or `dark`. Add descriptive topics like `warm`, `neon`, `anime`, `minimal`.
+- **Mode, colours and hue** from `colors.toml`; **license** and **stars** from GitHub; the **preview** is your `preview.png`, the same image Omarchy shows in its theme switcher.
+
+## Browse and install
+
+Browse at [themes.omarchy.org](https://themes.omarchy.org). Each theme page has the one-line install command:
+
+```sh
+omarchy theme install https://github.com/<owner>/omarchy-<name>-theme
 ```
-themes/<slug>.json   →  validator  →  dist/v1/catalog.json + previews  →  R2 (cdn.themes.omarchy.org)
-```
 
-## How a theme gets listed
+Or in Omarchy: menu → Install → Style → Theme and paste the repository URL.
 
-Add `themes/<slug>.json`, where `<slug>` is what Omarchy derives from the repo name (`omarchy-` prefix and `-theme` suffix stripped, lowercased):
+## Something wrong with a listed theme?
+
+Problems with a theme itself (it does not install, colours are off) belong in that theme's own issue tracker; the theme page links to it. If a listing should be taken down, open an issue here and a maintainer will review it.
+
+---
+
+## For maintainers and developers
+
+Read `CLAUDE.md` for the working conventions. The short version of everything else:
+
+**Pipeline.** `themes/<slug>.json` (one file per theme, so submissions never conflict) → validator → `dist/v1/` catalog and WebP previews → Cloudflare R2 under `/v1/`. The catalog carries the default-branch commit that passed validation; a theme that starts failing keeps its last-good entry, and a repo missing three refreshes in a row is dropped until it returns (`state/liveness.json`).
+
+**Entry format.** Only what cannot be read from the repo:
 
 ```json
+// sunset-drive.json
 {
 	"slug": "sunset-drive",
 	"repo": "https://github.com/tahayvr/omarchy-sunset-drive-theme",
@@ -20,78 +64,25 @@ Add `themes/<slug>.json`, where `<slug>` is what Omarchy derives from the repo n
 }
 ```
 
-That is the whole entry. Mode, palette, author, preview, license and everything else is read from the theme repo itself, so there is nothing to keep in sync. Tags come from the repo's GitHub topics (boilerplate like `omarchy-theme`, `hyprland` or `dark` is dropped, see `TAG_DENYLIST`); the optional `tags` array in the entry is for curator additions and goes first. Opening a PR runs the validator against the repo and posts the report on the PR; entries with errors cannot be merged.
+`slug` is what Omarchy derives from the repo name (`omarchy-` prefix and `-theme` suffix stripped, lowercased). An optional `tags` array adds curator tags ahead of the ones derived from topics.
 
-Slugs are first-come: the first merged entry keeps the name, and the 22 built-in Omarchy themes are reserved.
+**Curator overrides.** `overrides/featured.json` (array of slugs) and `overrides/hidden.json` (`{ "slug": "reason" }`, hides without giving up the slug). See `overrides/README.md`.
 
-### Submitting a theme
+**Submission queue.** [Open PRs labelled `auto-approve`](https://github.com/omacom/omarchy-theme-registry/pulls?q=is%3Apr+is%3Aopen+label%3Aauto-approve) were submitted by the repo owner: read the report in the PR body, glance at the preview, merge. PRs labelled `submission` without `auto-approve` came from someone else; confirm the author is fine with it first. Never hand-edit a submission PR; comment `/recheck` on its issue to regenerate it. To reject, close the issue. The `submission` label must exist before the first issue arrives; the workflow creates the rest.
 
-Authors do not write the entry by hand. Open a [**Submit a theme**](../../issues/new?template=submit-theme.yml) issue with the repo URL (the site's submit form does the same thing). Then:
+**Workflows.** `submit.yml` (issue → validate → PR, `/recheck`), `published.yml` (merged PR → notify and close the issue), `validate-pr.yml` (manual PRs to `themes/` or `overrides/`), `build.yml` (push to master, every 6 h, dispatch → build, upload, commit `state/`), `ci.yml` (lint, type-check, tests). Repository configuration: environment `R2-dev` with variables `CDN_BASE_URL`, `R2_BUCKET` and secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; without `R2_BUCKET` the build only attaches the catalog as an artifact. Optional `SUBMIT_TOKEN` secret so bot-opened PRs trigger checks.
 
-1. `submit.yml` validates the repo the way the catalog build does and comments the report on the issue.
-2. Green: it writes `themes/<slug>.json`, opens a PR from `submit/<slug>` that closes the issue, and labels both `validated`. If the issue author owns the repo (or is a public member of the owning org) the PR also gets `auto-approve`.
-3. Red: the issue is labelled `needs-changes`. The author fixes the repo and comments `/recheck` (the author, or a maintainer, can do this); the entry and PR are refreshed in place.
-4. A maintainer merges the PR. `build.yml` publishes the catalog, and `published.yml` tells the author on the issue, labels it `published`, and deletes the branch.
+**Published files** under `/v1/`: `catalog.json`, `catalog.min.json` (for the CLI), `catalog.json.sha256`, `themes/<slug>.json`, `previews/<slug>/<sha>/{1200,480}.webp` (immutable), `report.json`.
 
-A repo that is already listed is rejected with `ALREADY_LISTED`; the catalog follows each repo's default branch, so updates never need a new submission.
-
-**Maintainer runbook**
-
-- The queue is [open PRs labelled `auto-approve`](../../pulls?q=is%3Apr+is%3Aopen+label%3Aauto-approve): read the report in the PR body, glance at the preview, merge. PRs labelled `submission` without `auto-approve` were sent by someone other than the repo owner; check the author is fine with the listing before merging.
-- Never edit the entry in a submission PR by hand; comment `/recheck` on the issue instead so the branch is regenerated.
-- To change the display name, tags, or featured status after publishing, open a normal PR against `themes/` or `overrides/`.
-- To reject, close the issue; the PR can be closed too. To remove a published theme, add it to `overrides/hidden.json`.
-- Optional: set a `SUBMIT_TOKEN` repository secret (fine-grained PAT or GitHub App token with contents, issues and pull-requests write) so the PRs the bot opens trigger `validate-pr.yml`. With the default `GITHUB_TOKEN` they do not, which is fine: the same validator already ran on the issue.
-
-### Curator overrides
-
-- `overrides/featured.json` — array of slugs shown as featured.
-- `overrides/hidden.json` — `{ "slug": "reason" }`, removes a theme from the catalog without deleting its entry (keeps the slug claimed).
-
-## What the validator checks
-
-Everything `omarchy theme install` enforces, plus what makes a good listing. Errors block; warnings are published on the theme page.
-
-**Errors** — repo missing or private, slug invalid / built-in / already taken, theme not at repo root, symlinks, no palette (`colors.toml`, or legacy `alacritty.toml` to derive from), palette missing required keys or with bad values for them, no `preview.png` at the root (Omarchy's theme switcher shows it, so the site shows the same file), preview under 1000 px wide, images over 50 MB / 40 MP, repo over 400 MB.
-
-**Warnings** — archived repo, files Omarchy drops on install (`*.lua`, terminal configs, `vscode.json`), undeclared or conflicting `mode`, bad values for optional palette keys, missing/heavy/oddly named backgrounds, files in `backgrounds/` subfolders (ignored by Omarchy), no README/LICENSE, no `omarchy-theme` topic, non-conventional repo name, scripts or binaries in the repo, unknown `icons.theme`.
-
-The rules live in `packages/validator/src/validate.ts`; the constants mirrored from `omacom/omarchy` live in `packages/schema/src/constants.ts`.
-
-## The catalog
-
-Published under `/v1/` on the CDN:
-
-| File                     | Purpose                                                             |
-| ------------------------ | ------------------------------------------------------------------- |
-| `catalog.json`           | Full catalog (`packages/schema` → `Catalog`)                        |
-| `catalog.min.json`       | Slug, name, mode, hue, thumb, accent, install command — for the CLI |
-| `catalog.json.sha256`    | Integrity                                                           |
-| `themes/<slug>.json`     | One entry                                                           |
-| `previews/<slug>/<sha>/` | `1200.webp`, `480.webp` — immutable per validated commit            |
-| `report.json`            | Build outcome per theme (for maintainers)                           |
-
-Each catalog entry carries the `commit` that passed validation: the default branch HEAD at build time, which is exactly what `omarchy theme install` clones (git tags are ignored). A theme that starts failing validation keeps its last-good entry; a repo that is missing three refreshes in a row is dropped until it returns (`state/liveness.json`).
-
-## Working locally
+**Working locally.** Node 24, pnpm 12, `just`:
 
 ```sh
-pnpm install
-pnpm test                                    # validator unit tests
-GITHUB_TOKEN=$(gh auth token) pnpm validate https://github.com/owner/omarchy-x-theme
-GITHUB_TOKEN=$(gh auth token) pnpm build     # full catalog → dist/v1 (clones every repo; cached in .work/)
-node scripts/upload.ts --dry-run             # what would go to R2
-GITHUB_TOKEN=$(gh auth token) node scripts/submit.ts --repo https://github.com/owner/omarchy-x-theme --submitted-by owner   # dry-run a submission (--write to create the entry)
+just install
+just check                    # lint, type-check, tests
+just validate <url|slug>      # one repo, same rules as the build
+just submit <repo> <login>    # dry-run a submission (--write creates the entry)
+just build                    # full catalog into dist/v1 (clones every repo; cached in .work/)
+just upload-dry               # what would go to R2 (needs R2_* in .env)
 ```
 
-`scripts/import-existing.ts` was used once to seed the registry from `omacom/omarchy-site`.
-
-## Automation
-
-- **`submit.yml`** — on `submission` issues and `/recheck` comments: validates the repo, comments the report, opens or refreshes the `submit/<slug>` PR.
-- **`published.yml`** — when a `submit/<slug>` PR is merged: notifies and closes the issue, deletes the branch.
-- **`validate-pr.yml`** — on PRs touching `themes/` or `overrides/`: validates changed entries and comments the report.
-- **`build.yml`** — on push to `master` and every 6 hours: rebuilds the catalog, uploads changed objects to R2, commits `state/liveness.json`.
-- **`ci.yml`** — lint, type-check, tests for code changes.
-
-Required repository configuration: variables `CDN_BASE_URL`, `R2_BUCKET`; secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. Without `R2_BUCKET` the build still runs and attaches the catalog as a workflow artifact.
+Rules live in `packages/validator/src/validate.ts`; constants mirrored from `omacom/omarchy` in `packages/schema/src/constants.ts`. Change behaviour there, with a test.
