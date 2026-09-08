@@ -5,8 +5,8 @@
  *   node scripts/build-catalog.ts --only x,y     # subset (debugging)
  *   node scripts/build-catalog.ts --no-clone     # reuse .work/cache only (offline sanity check)
  *
- * For every registry entry: fetch GitHub metadata → pick the commit to validate (latest tag, else
- * default-branch HEAD) → clone at that commit (skipped when the cache already has that SHA) →
+ * For every registry entry: fetch GitHub metadata → resolve the default branch HEAD (what
+ * `omarchy theme install` clones) → clone at that commit (skipped when the cache already has that SHA) →
  * validate → render previews → emit a CatalogTheme. Themes with blocking errors keep their
  * last-good catalog entry if one exists in the cache; otherwise they are left out and listed in
  * dist/v1/report.json for maintainers.
@@ -165,9 +165,9 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 	}
 	delete liveness.strikes[slug];
 
-	// pick the commit: latest tag if any, else HEAD of default branch
-	const tag = await gh.latestTag(meta.htmlUrl);
-	const sha = tag ? tag.sha : await gh.headSha(meta.htmlUrl, meta.defaultBranch);
+	// Validate exactly what `omarchy theme install` clones: HEAD of the default branch.
+	// (Tags are ignored on purpose — they are rarely maintained and would pin stale previews.)
+	const sha = await gh.headSha(meta.htmlUrl, meta.defaultBranch);
 	if (!sha) {
 		if (cached?.lastGood)
 			return {

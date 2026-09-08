@@ -52,7 +52,7 @@ Published under `/v1/` on the CDN:
 | `previews/<slug>/<sha>/` | `1200.webp`, `480.webp` — immutable per validated commit            |
 | `report.json`            | Build outcome per theme (for maintainers)                           |
 
-Each catalog entry carries the `commit` that passed validation. The build prefers the latest git tag when a repo has one, otherwise the default branch HEAD. A theme that starts failing validation keeps its last-good entry; a repo that is missing three refreshes in a row is dropped until it returns (`state/liveness.json`).
+Each catalog entry carries the `commit` that passed validation: the default branch HEAD at build time, which is exactly what `omarchy theme install` clones (git tags are ignored). A theme that starts failing validation keeps its last-good entry; a repo that is missing three refreshes in a row is dropped until it returns (`state/liveness.json`).
 
 ## Working locally
 
