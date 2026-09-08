@@ -147,8 +147,12 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 
 	if (meta.missing) {
 		const s = liveness.strikes[slug] ?? { count: 0, since: now, last: now };
-		s.count += 1;
-		s.last = now;
+		// Stop touching the record once the theme is dropped, so state/ only changes when
+		// something actually changes (otherwise the bot would commit every scheduled run).
+		if (s.count < STRIKES_TO_DROP) {
+			s.count += 1;
+			s.last = now;
+		}
 		liveness.strikes[slug] = s;
 		if (s.count < STRIKES_TO_DROP && cached?.lastGood)
 			return {
