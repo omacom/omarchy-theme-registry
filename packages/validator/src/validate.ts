@@ -15,6 +15,7 @@ import {
 	hasRootFileMatching,
 	ignoredOnInstall,
 	inspectBackgrounds,
+	installedFiles,
 	readRootFile,
 	suspiciousFiles,
 	walkTree
@@ -370,9 +371,10 @@ export async function validateTheme(opts: ValidateOptions): Promise<ValidationRe
 	for (const p of suspiciousFiles(tree))
 		r.warn(
 			'NON_THEME_PAYLOAD',
-			'Script, launcher, or binary file in the repo. Omarchy never runs it, but reviewers will look.',
+			'Script, launcher or binary. It stays in your repository; a marketplace install does not check it out.',
 			p
 		);
+	const installed = installedFiles(tree);
 
 	for (const f of tree.files) {
 		if (f.isSymlink || f.path.startsWith('backgrounds/') || f.path === previewPath) continue;
@@ -411,6 +413,7 @@ export async function validateTheme(opts: ValidateOptions): Promise<ValidationRe
 				total_bytes: backgrounds.totalBytes
 			},
 			preview_path: previewPath,
+			installed_files: installed,
 			has_readme: hasReadme,
 			has_license_file: hasLicenseFile,
 			has_unlock: hasUnlock,
@@ -445,6 +448,9 @@ export function reportToMarkdown(report: ValidationReport, title = 'Validation')
 	);
 	lines.push(
 		`- ${f.backgrounds.count} background(s), ${(f.backgrounds.total_bytes / 1024 / 1024).toFixed(1)} MB · preview \`${f.preview_path ?? 'none'}\` · ${f.file_count} files`
+	);
+	lines.push(
+		`- a marketplace install puts ${f.installed_files.length} of them on your machine: ${f.installed_files.map((p) => `\`${p}\``).join(', ') || 'nothing'}`
 	);
 	return lines.join('\n');
 }

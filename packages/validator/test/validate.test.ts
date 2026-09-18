@@ -81,7 +81,11 @@ describe('validateTheme', () => {
 		const dir = await fixture('native', {
 			'colors.toml': TOKYO,
 			'icons.theme': 'Yaru-magenta\n',
+			'btop.theme': 'theme[main_bg]="#1a1b26"',
+			'colors.fish': 'set -U fish_color_command green',
 			'preview.png': 'png',
+			'preview.mp4': 'video for the switcher; the marketplace renders preview.png',
+			'LICENSE.old': 'not an exact notice name',
 			'README.md': '# fixture',
 			LICENSE: 'MIT',
 			'backgrounds/1-a.webp': 'img',
@@ -106,6 +110,18 @@ describe('validateTheme', () => {
 			backgrounds: { count: 2, has_video: false }
 		});
 		expect(r.warnings.map((w) => w.code)).toEqual([]);
+		// a marketplace install checks out what Omarchy reads plus LICENSE/README; colors.fish is neither
+		expect(r.facts.installed_files).toEqual([
+			'LICENSE',
+			'README.md',
+			'backgrounds/1-a.webp',
+			'backgrounds/2-b.webp',
+			'btop.theme',
+			'colors.toml',
+			'icons.theme',
+			'preview.mp4',
+			'preview.png'
+		]);
 	});
 
 	it('warns about ignored files on a hybrid theme', async () => {
@@ -116,8 +132,12 @@ describe('validateTheme', () => {
 			'hyprland.lua': 'x',
 			'waybar.css': '*{}',
 			'vscode.json': '{"extension":"enkia.tokyo-night"}',
+			'extras/nvim/init.lua': 'x',
+			'shell.lock.toml': 'text = "#a9b1d6"\n',
 			'preview.png': 'png',
-			'backgrounds/a.png': 'img'
+			'backgrounds/a.png': 'img',
+			'backgrounds/B.JPG': 'img',
+			'backgrounds/loop.mp4': 'video'
 		});
 		const r = await validateTheme({
 			dir,
@@ -126,11 +146,23 @@ describe('validateTheme', () => {
 		});
 		expect(r.ok).toBe(true);
 		expect(r.facts.generation).toBe('hybrid');
+		// only top-level entries are subject to the denylist; subdirectories are copied as they are
 		expect(r.facts.ignored_on_install).toEqual([
 			'alacritty.toml',
 			'hyprland.lua',
 			'neovim.lua',
 			'vscode.json'
+		]);
+		// legacy per-app files and the denied ones are never checked out; a shell section override is,
+		// and so is every supported background format, any case
+		expect(r.facts.backgrounds).toMatchObject({ count: 3, has_video: true });
+		expect(r.facts.installed_files).toEqual([
+			'backgrounds/B.JPG',
+			'backgrounds/a.png',
+			'backgrounds/loop.mp4',
+			'colors.toml',
+			'preview.png',
+			'shell.lock.toml'
 		]);
 		const codes = r.warnings.map((w) => w.code);
 		expect(codes).toContain('IGNORED_ON_INSTALL');
@@ -164,6 +196,8 @@ cyan = "#689d6a"`,
 		expect(r.facts.palette_source).toBe('alacritty.toml');
 		expect(r.facts.mode).toBe('dark');
 		expect(r.facts.preview_path).toBe('preview.jpg');
+		// no colors.toml, so alacritty.toml is checked out for Omarchy to derive the palette from
+		expect(r.facts.installed_files).toEqual(['alacritty.toml', 'backgrounds/a.jpg', 'preview.jpg']);
 		expect(r.warnings.map((w) => w.code)).toContain('PALETTE_LEGACY');
 		expect(r.warnings.map((w) => w.code)).toContain('MODE_UNDECLARED');
 	});
@@ -245,5 +279,7 @@ cyan = "#689d6a"`,
 		expect(codes).toContain('BACKGROUND_FILENAME');
 		expect(codes).toContain('BACKGROUND_SKIPPED');
 		expect(r.facts.backgrounds.count).toBe(1);
+		expect(r.facts.installed_files).not.toContain('install.sh');
+		expect(r.facts.installed_files).toContain('light.mode');
 	});
 });

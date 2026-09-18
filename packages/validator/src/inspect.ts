@@ -4,7 +4,10 @@ import {
 	BACKGROUND_IMAGE_EXTENSIONS,
 	BACKGROUND_VIDEO_EXTENSIONS,
 	INSTALL_DENIED_FILES,
-	PREVIEW_CANDIDATES
+	INSTALLED_NOTICE_FILES,
+	INSTALLED_THEME_FILES,
+	PREVIEW_CANDIDATES,
+	SWITCHER_PREVIEW_FILES
 } from '@omarchy-themes/schema';
 
 export interface TreeFile {
@@ -72,13 +75,48 @@ export async function walkTree(root: string): Promise<TreeInfo> {
 	};
 }
 
-/** Files Omarchy will drop for a repo-installed theme (`stage_installed_theme`). */
+/**
+ * Files Omarchy will drop for a repo-installed theme (`stage_installed_theme`). The name check
+ * runs on top-level entries only — subdirectories are copied as they are — so a nested `.lua`
+ * is kept, as upstream keeps it.
+ */
 export function ignoredOnInstall(tree: TreeInfo): string[] {
 	const denied = new Set<string>(INSTALL_DENIED_FILES);
 	return tree.files
 		.filter(
-			(f) => f.isSymlink || f.path.endsWith('.lua') || (!f.path.includes('/') && denied.has(f.path))
+			(f) =>
+				f.isSymlink || (!f.path.includes('/') && (f.path.endsWith('.lua') || denied.has(f.path)))
 		)
+		.map((f) => f.path)
+		.sort();
+}
+
+/**
+ * What a marketplace install puts on the machine: the exact names `omarchy theme install <name>`
+ * checks out (`INSTALLED_THEME_FILES`, `SWITCHER_PREVIEW_FILES`, `INSTALLED_NOTICE_FILES`), the
+ * backgrounds Omarchy picks up (supported image and video formats directly under `backgrounds/`,
+ * any case), `shell.<section>.toml` overrides, and a legacy `alacritty.toml` only when there is no
+ * `colors.toml` for Omarchy to derive one from. Informational — Omarchy's sparse checkout is what
+ * enforces it. Symlinks are never listed. Sorted, relative to the theme root.
+ */
+export function installedFiles(tree: TreeInfo): string[] {
+	const wanted = new Set<string>([
+		...INSTALLED_THEME_FILES,
+		...SWITCHER_PREVIEW_FILES,
+		...INSTALLED_NOTICE_FILES
+	]);
+	const backgrounds = new Set(inspectBackgrounds(tree).usable.map((f) => f.path));
+	const hasColors = tree.rootFiles.has('colors.toml');
+	return tree.files
+		.filter((f) => {
+			if (f.isSymlink) return false;
+			if (backgrounds.has(f.path)) return true;
+			if (f.path.includes('/')) return false;
+			const name = f.path;
+			if (wanted.has(name)) return true;
+			if (name === 'alacritty.toml') return !hasColors;
+			return /^shell\.[A-Za-z0-9_-]+\.toml$/.test(name);
+		})
 		.map((f) => f.path)
 		.sort();
 }
@@ -150,10 +188,14 @@ export function detectGeneration(tree: TreeInfo): Generation {
 	return 'legacy';
 }
 
-const SUSPICIOUS_EXT = new Set(['.sh', '.bash', '.zsh', '.fish', '.py', '.rb', '.pl', '.desktop']);
+const SUSPICIOUS_EXT = new Set(['.sh', '.bash', '.zsh', '.py', '.rb', '.pl', '.desktop']);
 const BINARY_EXT = new Set(['.so', '.bin', '.exe', '.dll', '.dylib', '.AppImage', '.deb', '.rpm']);
 
-/** Payload that is not part of a theme and worth surfacing to reviewers. */
+/**
+ * Scripts and binaries. A marketplace install never checks them out; surfaced so submitters know
+ * and reviewers can look. (`.fish` is not listed: `colors.fish` and `fzf.fish` are palette
+ * assignments shipped by a popular template, not programs.)
+ */
 export function suspiciousFiles(tree: TreeInfo): string[] {
 	return tree.files
 		.filter((f) => {

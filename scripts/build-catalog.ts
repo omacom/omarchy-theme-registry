@@ -187,10 +187,13 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 
 	let record: CacheRecord;
 	const takenSlugs = allSlugs.filter((s) => s !== slug);
+	// A record written before `installed_files` existed has to be rebuilt from a fresh clone.
+	const cachedFacts = cached?.report.facts as Partial<ValidationReport['facts']> | undefined;
 	if (
 		cached &&
 		cached.sha === sha &&
 		cached.preview &&
+		cachedFacts?.installed_files &&
 		(await exists(join(PREVIEW_CACHE, slug, sha, '1200.webp')))
 	) {
 		record = cached;
@@ -258,6 +261,7 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 		colors: f.colors,
 		generation: f.generation,
 		ignored_on_install: f.ignored_on_install,
+		installed_files: f.installed_files,
 		backgrounds: f.backgrounds,
 		preview: {
 			...urls,

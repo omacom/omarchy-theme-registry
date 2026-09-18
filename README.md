@@ -18,7 +18,9 @@ The validator enforces what `omarchy theme install` enforces, plus a few things 
 
 **Errors** — repository missing or private; theme not at the repo root; symlinks; no palette (`colors.toml`, or a legacy `alacritty.toml` to derive from) or one missing required keys; no `preview.png` at the root, or narrower than 1000 px; images over 50 MB / 40 MP; repository over 400 MB; a name that is invalid, reserved by a built-in theme, or already taken (first come, first served).
 
-**Warnings** — archived repo; files Omarchy drops on install (`*.lua`, terminal configs, `vscode.json`); undeclared or conflicting `mode`; heavy or oddly named backgrounds, or backgrounds in other subfolders; no README or LICENSE; no `omarchy-theme` topic; unconventional repo name; scripts or binaries in the repo; unknown `icons.theme`.
+**Warnings** — archived repo; files Omarchy drops on install (`*.lua`, terminal configs, `vscode.json`); undeclared or conflicting `mode`; heavy or oddly named backgrounds, or backgrounds in other subfolders; no README or LICENSE; no `omarchy-theme` topic; unconventional repo name; scripts or binaries in the repo (a marketplace install never checks them out); unknown `icons.theme`.
+
+The report also lists what `omarchy theme install <name>` puts on a machine: only the files Omarchy reads from a theme (`colors.toml`, backgrounds, `preview.*`, `icons.theme`, `unlock.png`, `btop.theme`, `chromium.theme`, `shell.<section>.toml` and the like) plus your LICENSE and README. Anything else you ship — scripts, plugins, configs for other apps — stays in your repository, where `omarchy theme install <url>` still clones all of it.
 
 ### What shows up on the theme page
 

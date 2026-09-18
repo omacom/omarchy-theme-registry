@@ -34,7 +34,8 @@ export const BUILTIN_THEMES = [
 
 /**
  * `bin/omarchy-theme-set` → `stage_installed_theme`: files dropped from a theme installed from a git repo.
- * Any `*.lua` file and any symlink are also dropped (handled by pattern, not by name).
+ * Any top-level `*.lua` file and any symlink are also dropped (handled by pattern, not by name).
+ * The check runs on top-level entries only; `stage_installed_dir` copies subdirectories as they are.
  */
 export const INSTALL_DENIED_FILES = [
 	'alacritty.toml',
@@ -44,20 +45,70 @@ export const INSTALL_DENIED_FILES = [
 	'vscode.json'
 ] as const;
 
+/**
+ * Root files a marketplace install (`omarchy theme install <name>`) checks out of a theme repo:
+ * the sparse-checkout patterns in `bin/omarchy-theme-install`, which are the files Omarchy reads
+ * from a theme (manual: "What an installed theme can contain") — the palette, the files the
+ * built-in themes ship and the template outputs a theme may pre-supply. Also checked out:
+ * `SWITCHER_PREVIEW_FILES`, `INSTALLED_NOTICE_FILES`, `backgrounds/*`, `shell.<section>.toml`,
+ * and `alacritty.toml` when there is no `colors.toml` to derive from (see `installedFiles`).
+ * Keep in sync with Omarchy.
+ */
+export const INSTALLED_THEME_FILES = [
+	'colors.toml',
+	'light.mode',
+	'icons.theme',
+	'keyboard.rgb',
+	'btop.theme',
+	'chromium.theme',
+	'helix.toml',
+	'shell.toml',
+	'unlock.png',
+	'preview-unlock.png'
+] as const;
+
 /** Background formats accepted directly under `backgrounds/` (depth 1). */
 export const BACKGROUND_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] as const;
 export const BACKGROUND_VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv', 'avi'] as const;
 
 /**
- * Preview file names at the repo root, in priority order. Omarchy's theme switcher
- * (`omarchy-theme-switcher`) looks for `preview.*` only, so a listed theme must ship one —
- * the marketplace shows exactly what the user will see on their system.
+ * Every preview name `omarchy-theme-switcher` → `find_preview` looks for, in its order (it matches
+ * them case-insensitively; a marketplace install checks out these exact lowercase names).
+ */
+export const SWITCHER_PREVIEW_FILES = [
+	'preview.png',
+	'preview.jpg',
+	'preview.jpeg',
+	'preview.webp',
+	'preview.gif',
+	'preview.bmp',
+	'preview.mp4',
+	'preview.m4v',
+	'preview.mov',
+	'preview.webm',
+	'preview.mkv',
+	'preview.avi'
+] as const;
+
+/**
+ * The switcher previews the marketplace can render, in priority order. A listed theme must ship
+ * one of these at the repo root — the marketplace shows exactly what the user will see on their system.
  */
 export const PREVIEW_CANDIDATES = [
 	'preview.png',
 	'preview.jpg',
 	'preview.jpeg',
 	'preview.webp'
+] as const;
+
+/** License and README names a marketplace install checks out alongside the theme. */
+export const INSTALLED_NOTICE_FILES = [
+	'LICENSE',
+	'LICENSE.md',
+	'LICENSE.txt',
+	'README',
+	'README.md',
+	'README.txt'
 ] as const;
 
 /** Palette keys the validator requires in `colors.toml` for a theme to be listed. */

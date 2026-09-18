@@ -80,6 +80,7 @@ export const CatalogTheme = z.strictObject({
 	colors: Palette,
 	generation: Generation,
 	ignored_on_install: z.array(z.string()),
+	installed_files: z.array(z.string()).describe('what `omarchy theme install <name>` checks out'),
 	backgrounds: z.strictObject({
 		count: z.int().nonnegative(),
 		has_video: z.boolean(),
@@ -157,6 +158,8 @@ export const ValidationReport = z.strictObject({
 			total_bytes: z.int().nonnegative()
 		}),
 		preview_path: z.string().nullable(),
+		/** what `omarchy theme install <name>` checks out; see `installedFiles` */
+		installed_files: z.array(z.string()),
 		has_readme: z.boolean(),
 		has_license_file: z.boolean(),
 		has_unlock: z.boolean(),

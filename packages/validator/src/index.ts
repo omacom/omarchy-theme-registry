@@ -15,7 +15,8 @@ export {
 	inspectBackgrounds,
 	findPreview,
 	detectGeneration,
-	suspiciousFiles
+	suspiciousFiles,
+	installedFiles
 } from './inspect.ts';
 export { GithubClient, type RepoMeta } from './github.ts';
 export { cloneRepo, type Checkout } from './clone.ts';
