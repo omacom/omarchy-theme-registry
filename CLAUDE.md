@@ -23,7 +23,7 @@ Source of truth for the community themes listed on **themes.omarchy.org**. One s
 
 ## Automation (`.github/workflows`)
 
-- `submit.yml` — issues from the "Submit a theme" form (label `submission`) and `/recheck` comments: validate, comment the report, on green write the entry and open/refresh a `submit/<slug>` PR (`auto-approve` when the submitter owns the repo). Uses `SUBMIT_TOKEN` if set so the PR triggers checks; with `GITHUB_TOKEN` it does not.
+- `submit.yml` — issues from the "Submit a theme" form (label `submission`) and `/recheck` comments: validate, comment the report, on green write the entry and open/refresh a `submit/<slug>` PR (`auto-approve` when the submitter owns the repo; the PR body links the theme repo). The PR runs no checks by design — `submit.ts` has already validated the theme and the branch is only pushed on green. Uses `SUBMIT_TOKEN` if set, otherwise `GITHUB_TOKEN`.
 - `published.yml` — when a `submit/<slug>` PR merges: notify and close the issue, label `published`, delete the branch.
 - `validate-pr.yml` — PRs touching `overrides/` only. It deliberately does **not** watch `themes/`: `submit.yml` has already validated the entry before the `submit/<slug>` PR exists, and a second run only added a held `action_required` check for a maintainer to click.
 - `build.yml` — on push to master (code/`overrides/` only — **not** `themes/`, so merging a queue of submissions does not rebuild once per merge), every 6 h, and on dispatch: build, upload to R2, commit `state/`. A merged theme therefore goes live at the next scheduled build; user-facing copy must say so rather than promising it immediately.

@@ -78,6 +78,7 @@ jobs:
             echo "ok=$(jq -r .ok result.json)"
             echo "slug=$(jq -r '.slug // empty' result.json)"
             echo "name=$(jq -r '.name // empty' result.json)"
+            echo "repo=$(jq -r '.repo // empty' result.json)"
             echo "owner=$(jq -r .owner_verified result.json)"
           } >> "$GITHUB_OUTPUT"
           cat report.md >> "$GITHUB_STEP_SUMMARY"
@@ -99,6 +100,7 @@ jobs:
         env:
           SLUG: ${{ steps.validate.outputs.slug }}
           NAME: ${{ steps.validate.outputs.name }}
+          REPO: ${{ steps.validate.outputs.repo }}
           OWNER: ${{ steps.validate.outputs.owner }}
         run: |
           git config user.name 'omarchy-themes-bot'
@@ -113,6 +115,9 @@ jobs:
             echo "Closes #$ISSUE"
             echo
             echo "Adds \`themes/$SLUG.json\` for \`$NAME\`, submitted by @$SUBMITTER."
+            echo
+            echo "**Theme repository:** [${REPO#https://github.com/}]($REPO)"
+            echo
             if [ "$OWNER" = 'true' ]; then
               echo 'The submitter owns the repository.'
             else
