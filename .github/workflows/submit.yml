@@ -4,9 +4,10 @@ name: Submission
 # validated, gets a report comment, and — when green — a PR adding themes/<slug>.json.
 # Commenting `/recheck` on the issue re-runs everything.
 #
-# Uses SUBMIT_TOKEN (a GitHub App or fine-grained PAT with contents/issues/pull-requests write)
-# when set, so the PR it opens triggers the normal `validate-pr` checks. With the default
-# GITHUB_TOKEN the PR is still opened, but workflows do not run on it.
+# The submission PR deliberately runs no checks: submit.ts below has already validated the theme
+# and the branch is only pushed when it passes, so validate-pr.yml no longer watches `themes/`.
+# SUBMIT_TOKEN (a GitHub App or fine-grained PAT with contents/issues/pull-requests write) is used
+# when set; with the default GITHUB_TOKEN the PR is still opened.
 
 on:
   issues:
