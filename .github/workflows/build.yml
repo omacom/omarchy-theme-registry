@@ -4,7 +4,6 @@ on:
   push:
     branches: [master]
     paths:
-      - 'themes/**'
       - 'overrides/**'
       - 'packages/**'
       - 'scripts/**'

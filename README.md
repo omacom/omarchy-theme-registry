@@ -7,7 +7,7 @@ The list of community themes behind [themes.omarchy.org](https://themes.omarchy.
 1. Make a theme. The [Omarchy manual](https://omarchy.org/manual/making-your-own-theme/) has the full guide; the short version is a public GitHub repo named `omarchy-<name>-theme` with `colors.toml`, a `backgrounds/` folder and a 16:9 `preview.png` at its root.
 2. [**Submit a theme**](https://github.com/omacom/omarchy-theme-registry/issues/new?template=submit-theme.yml).
 3. Within a few minutes a bot comments a validation report on the issue.
-   - **Passed:** a pull request is opened for you and a maintainer merges it. Your theme is live shortly after, and the bot tells you on the issue.
+   - **Passed:** a pull request is opened for you and a maintainer merges it. The bot tells you on the issue; your theme appears on the site at the next catalog build, which runs every six hours.
    - **Needs changes:** fix what the report lists in your repo, then comment `/recheck` on the issue. No need to open a new one.
 
 Once listed, the marketplace follows your repository's default branch: push changes and the listing updates on the next refresh (every six hours). Updates never need a new submission.
@@ -72,7 +72,7 @@ Read `CLAUDE.md` for the working conventions. The short version of everything el
 
 **Submission queue.** [Open PRs labelled `auto-approve`](https://github.com/omacom/omarchy-theme-registry/pulls?q=is%3Apr+is%3Aopen+label%3Aauto-approve) were submitted by the repo owner: read the report in the PR body, glance at the preview, merge. PRs labelled `submission` without `auto-approve` came from someone else; confirm the author is fine with it first. Never hand-edit a submission PR; comment `/recheck` on its issue to regenerate it. To reject, close the issue. The `submission` label must exist before the first issue arrives; the workflow creates the rest.
 
-**Workflows.** `submit.yml` (issue → validate → PR, `/recheck`), `published.yml` (merged PR → notify and close the issue), `validate-pr.yml` (manual PRs to `themes/` or `overrides/`), `build.yml` (push to master, every 6 h, dispatch → build, upload, commit `state/`), `ci.yml` (lint, type-check, tests). Repository configuration: environment `R2-dev` with variables `CDN_BASE_URL`, `R2_BUCKET` and secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; without `R2_BUCKET` the build only attaches the catalog as an artifact. Optional `SUBMIT_TOKEN` secret so bot-opened PRs trigger checks.
+**Workflows.** `submit.yml` (issue → validate → PR, `/recheck`), `published.yml` (merged PR → notify and close the issue), `validate-pr.yml` (manual PRs to `themes/` or `overrides/`), `build.yml` (push to master excluding `themes/`, every 6 h, dispatch → build, upload, commit `state/`), `ci.yml` (lint, type-check, tests). Repository configuration: environment `R2-dev` with variables `CDN_BASE_URL`, `R2_BUCKET` and secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; without `R2_BUCKET` the build only attaches the catalog as an artifact. Optional `SUBMIT_TOKEN` secret so bot-opened PRs trigger checks.
 
 **Published files** under `/v1/`: `catalog.json`, `catalog.min.json` (for the CLI), `catalog.json.sha256`, `themes/<slug>.json`, `previews/<slug>/<sha>/{1200,480}.webp` (immutable), `report.json`.
 

@@ -8,7 +8,8 @@ body:
       value: |
         Thanks for sharing your theme. Validation runs automatically when you open this issue and
         posts a report below. If it passes, a pull request is opened for you; once a maintainer
-        merges it the theme is live. If it fails, fix the repo and comment `/recheck`.
+        merges it your theme goes on the site at the next catalog build, which runs every six
+        hours. If it fails, fix the repo and comment `/recheck`.
 
         The theme must be a public GitHub repository with `colors.toml`, `backgrounds/` and
         `preview.png` at its root — see [what the validator checks](https://themes.omarchy.org/docs/validation).

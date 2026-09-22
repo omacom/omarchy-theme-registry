@@ -26,7 +26,7 @@ Source of truth for the community themes listed on **themes.omarchy.org**. One s
 - `submit.yml` — issues from the "Submit a theme" form (label `submission`) and `/recheck` comments: validate, comment the report, on green write the entry and open/refresh a `submit/<slug>` PR (`auto-approve` when the submitter owns the repo). Uses `SUBMIT_TOKEN` if set so the PR triggers checks; with `GITHUB_TOKEN` it does not.
 - `published.yml` — when a `submit/<slug>` PR merges: notify and close the issue, label `published`, delete the branch.
 - `validate-pr.yml` — PRs touching `themes/` or `overrides/`: validate changed entries, comment the report.
-- `build.yml` — on push to master, every 6 h, and on dispatch: build, upload to R2, commit `state/`. Runs in the `R2-dev` environment.
+- `build.yml` — on push to master (code/`overrides/` only — **not** `themes/`, so merging a queue of submissions does not rebuild once per merge), every 6 h, and on dispatch: build, upload to R2, commit `state/`. A merged theme therefore goes live at the next scheduled build; user-facing copy must say so rather than promising it immediately.
 - `ci.yml` — lint, type-check, tests.
 
 The `submission` label must exist before the first issue arrives (the workflow creates the others).
