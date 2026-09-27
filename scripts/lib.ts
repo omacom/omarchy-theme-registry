@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { Overrides, RegistryEntry, type RegistryEntry as Entry } from '@omarchy-themes/schema';
+import type { DigestTheme } from '@omarchy-themes/validator';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const THEMES_DIR = join(ROOT, 'themes');
@@ -14,6 +15,42 @@ export const CDN_BASE_URL = (process.env.CDN_BASE_URL ?? 'https://cdn.themes.oma
 	/\/$/,
 	''
 );
+
+/** The marketplace site, for links in the build digest. */
+export const SITE_URL = (process.env.SITE_URL ?? 'https://themes.omarchy.org').replace(/\/$/, '');
+
+/** Where the build writes its change digest: capped for the pinned issue, and in full. */
+export const DIGEST_PATH = join(WORK_DIR, 'digest.md');
+export const DIGEST_FULL_PATH = join(WORK_DIR, 'digest-full.md');
+
+/**
+ * The catalog live on the CDN before this build, read loosely: only the fields the digest needs,
+ * so an older catalog shape still compares. Null when it cannot be fetched or read.
+ */
+export async function fetchPublishedCatalog(): Promise<{
+	generated_at: string;
+	themes: DigestTheme[];
+} | null> {
+	try {
+		const res = await fetch(`${CDN_BASE_URL}/v1/catalog.json`, {
+			signal: AbortSignal.timeout(20_000)
+		});
+		if (!res.ok) return null;
+		const j = (await res.json()) as { generated_at?: unknown; themes?: unknown };
+		if (typeof j.generated_at !== 'string' || !Array.isArray(j.themes)) return null;
+		const themes = (j.themes as Partial<DigestTheme>[]).filter(
+			(t): t is DigestTheme =>
+				typeof t.slug === 'string' &&
+				typeof t.commit === 'string' &&
+				typeof t.preview?.thumb === 'string' &&
+				typeof t.author?.login === 'string' &&
+				Array.isArray(t.installed_files)
+		);
+		return { generated_at: j.generated_at, themes };
+	} catch {
+		return null;
+	}
+}
 
 export function githubToken(): string | undefined {
 	return process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;

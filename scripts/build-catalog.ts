@@ -36,12 +36,20 @@ import {
 	repoFindings,
 	REPO_META_CODES,
 	type RepoMeta,
-	deriveTags
+	deriveTags,
+	renderDigest,
+	installedChanges,
+	ISSUE_COMMENT_LIMIT,
+	type FileChange
 } from '@omarchy-themes/validator';
 import {
 	CDN_BASE_URL,
+	DIGEST_FULL_PATH,
+	DIGEST_PATH,
 	DIST_DIR,
+	SITE_URL,
 	WORK_DIR,
+	fetchPublishedCatalog,
 	githubToken,
 	loadOverrides,
 	loadRegistry,
@@ -92,6 +100,10 @@ const now = new Date().toISOString();
 await mkdir(CACHE_DIR, { recursive: true });
 await mkdir(PREVIEW_CACHE, { recursive: true });
 await rm(OUT, { recursive: true, force: true });
+await rm(DIGEST_PATH, { force: true });
+await rm(DIGEST_FULL_PATH, { force: true });
+// What is live now, to report what this build changes. A partial (--only) build has no digest.
+const published = only ? null : await fetchPublishedCatalog();
 await mkdir(join(OUT, 'previews'), { recursive: true });
 await mkdir(join(OUT, 'themes'), { recursive: true });
 
@@ -354,4 +366,39 @@ log(
 for (const p of report.problems) {
 	const detail = 'errors' in p ? p.errors.slice(0, 3).join(' | ') : 'reason' in p ? p.reason : '';
 	log(`  - ${p.slug} [${p.status}] ${detail}`);
+}
+
+// ── change digest ────────────────────────────────────────────────────────
+// What this build changes for people installing themes, for maintainers to skim: the workflow
+// puts it in the run summary and, when something changed, on the pinned "Catalog changes" issue.
+if (!only) {
+	const before = new Map(published?.themes.map((t) => [t.slug, t]));
+	const moved = themes.filter((t) => {
+		const prev = before.get(t.slug);
+		return prev && prev.commit !== t.commit;
+	});
+	const changes: Record<string, FileChange[] | null> = {};
+	await mapLimit(moved, CONCURRENCY, async (t) => {
+		const prev = before.get(t.slug)!;
+		const files = await gh.compare(t.repo, prev.commit, t.commit).catch(() => null);
+		changes[t.slug] = files && installedChanges(files, prev, t);
+	});
+	const dropReasons: Record<string, string> = {};
+	for (const o of outcomes) {
+		if (o.status === 'hidden') dropReasons[o.slug] = `hidden by a curator: ${o.reason}`;
+		else if (o.status === 'missing') dropReasons[o.slug] = 'repository is missing or private';
+		else if (o.status === 'excluded')
+			dropReasons[o.slug] = o.errors.length ? o.errors.slice(0, 2).join('; ') : o.reason;
+	}
+	const input = {
+		generatedAt: now,
+		previous: published,
+		current: themes,
+		dropReasons,
+		changes,
+		siteUrl: SITE_URL
+	};
+	await writeFile(DIGEST_PATH, renderDigest(input, ISSUE_COMMENT_LIMIT).markdown + '\n');
+	await writeFile(DIGEST_FULL_PATH, renderDigest(input).markdown + '\n');
+	log(`\nDigest: ${DIGEST_PATH}`);
 }

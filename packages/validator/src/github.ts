@@ -158,6 +158,28 @@ export class GithubClient {
 		return t ? { name: t.name, sha: t.commit.sha } : null;
 	}
 
+	/**
+	 * Files changed between two commits, or null when GitHub cannot compare them (a commit is gone
+	 * after a force-push, or the request failed). GitHub lists at most 300 files.
+	 */
+	async compare(
+		canonicalUrl: string,
+		base: string,
+		head: string
+	): Promise<{ path: string; status: string; previous?: string }[] | null> {
+		const { owner, name } = repoOwnerAndName(canonicalUrl);
+		const res = await this.#get(`/repos/${owner}/${name}/compare/${base}...${head}?per_page=300`);
+		if (!res.ok) return null;
+		const j = (await res.json()) as {
+			files?: { filename: string; status: string; previous_filename?: string }[];
+		};
+		return (j.files ?? []).map((f) =>
+			f.previous_filename
+				? { path: f.filename, status: f.status, previous: f.previous_filename }
+				: { path: f.filename, status: f.status }
+		);
+	}
+
 	async headSha(canonicalUrl: string, branch: string): Promise<string | null> {
 		const { owner, name } = repoOwnerAndName(canonicalUrl);
 		const res = await this.#get(`/repos/${owner}/${name}/commits/${encodeURIComponent(branch)}`);

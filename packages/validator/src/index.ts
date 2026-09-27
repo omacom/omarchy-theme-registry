@@ -29,3 +29,12 @@ export {
 } from './validate.ts';
 export { parseIssueForm, ISSUE_FORM_FIELDS, type IssueFormFields } from './issue-form.ts';
 export { deriveTags, normalizeTag } from './tags.ts';
+export {
+	renderDigest,
+	installedChanges,
+	DIGEST_MARKER,
+	ISSUE_COMMENT_LIMIT,
+	type DigestInput,
+	type DigestTheme,
+	type FileChange
+} from './digest.ts';
