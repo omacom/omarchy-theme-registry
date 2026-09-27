@@ -38,6 +38,11 @@ export interface ValidateOptions {
 	repoUrl: string;
 	/** GitHub metadata, if available (null when validating a local directory only) */
 	meta?: RepoMeta | null;
+	/**
+	 * The install name: the registry entry's slug for a listed theme, or `assignSlug`'s answer for
+	 * a submission. Defaults to what Omarchy derives from the repo name.
+	 */
+	slug?: string;
 	/** slugs already in the registry (excluding this theme's own, when re-validating) */
 	takenSlugs?: Iterable<string>;
 	/**
@@ -127,7 +132,8 @@ export async function validateTheme(opts: ValidateOptions): Promise<ValidationRe
 	}
 
 	// ── slug ───────────────────────────────────────────────────────────────
-	const slug = deriveSlug(opts.repoUrl);
+	const derived = deriveSlug(opts.repoUrl);
+	const slug = opts.slug ?? derived;
 	if (!isValidSlug(slug)) {
 		r.error(
 			'SLUG_INVALID',
@@ -142,13 +148,13 @@ export async function validateTheme(opts: ValidateOptions): Promise<ValidationRe
 		if (taken.has(slug))
 			r.error(
 				'SLUG_TAKEN',
-				`"${slug}" is already claimed by another listed theme (first claim keeps it). Rename the repo so it installs to a different directory.`
+				`"${slug}" is already the install name of another listed theme. Rename the repo so it gets a different one.`
 			);
 		const repoName = basename(opts.repoUrl);
 		if (!/^omarchy-.+-theme$/i.test(repoName))
 			r.warn(
 				'REPO_NAME_CONVENTION',
-				`Recommended repo name is omarchy-${slug}-theme (it installs as "${slug}" either way).`
+				`Recommended repo name is omarchy-${derived}-theme (it installs as "${slug}" either way).`
 			);
 	}
 

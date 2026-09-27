@@ -14,6 +14,7 @@ import {
 	GithubClient,
 	canonicalRepoUrl,
 	cloneRepo,
+	assignSlug,
 	deriveSlug,
 	parseIssueForm,
 	reportToMarkdown,
@@ -41,6 +42,8 @@ interface Result {
 	submitted_by: string;
 	/** submitter owns the repo (user) or is a public member of the owning org */
 	owner_verified: boolean;
+	/** what Omarchy derives from the repo name; differs from `slug` when that name was taken */
+	derived_slug: string | null;
 	/** set when this repo is already in the registry */
 	existing_slug: string | null;
 	entry: RegistryEntry | null;
@@ -69,6 +72,7 @@ const result: Result = {
 	repo: null,
 	submitted_by: submittedBy,
 	owner_verified: false,
+	derived_slug: null,
 	existing_slug: null,
 	entry: null,
 	file: null,
@@ -105,21 +109,26 @@ if (canon) {
 	} else if (meta.missing) {
 		fail('REPO_MISSING', 'Repository does not exist or is not public.');
 	} else {
+		const takenSlugs = registry.map((e) => e.slug);
+		result.derived_slug = deriveSlug(result.repo);
+		const slug = assignSlug(result.repo, meta.owner, takenSlugs);
 		const co = await cloneRepo(result.repo);
 		try {
 			result.report = await validateTheme({
 				dir: co.dir,
 				repoUrl: result.repo,
+				slug,
 				meta,
-				takenSlugs: registry.map((e) => e.slug),
+				takenSlugs,
 				probeImage
 			});
 		} finally {
 			await co.cleanup();
 		}
 		result.owner_verified = await gh.controlsRepo(submittedBy, meta);
-		result.slug = result.report.facts.slug ?? deriveSlug(result.repo);
-		result.name ??= titleCase(result.slug);
+		result.slug = result.report.facts.slug ?? slug;
+		// The display name comes from the repo, not from an owner suffix added to the install name.
+		result.name ??= titleCase(result.derived_slug);
 
 		if (result.report.ok) {
 			const parsed = RegistryEntry.safeParse({
@@ -169,6 +178,11 @@ function toMarkdown(r: Result): string {
 		for (const f of r.errors) lines.push(`- \`${f.code}\` — ${f.message}`);
 	}
 	lines.push('');
+	if (r.slug && r.derived_slug && r.slug !== r.derived_slug)
+		lines.push(
+			`\`${r.derived_slug}\` is already the name of another theme, so this one installs as \`${r.slug}\`: \`omarchy theme install ${r.slug}\`.`,
+			''
+		);
 	if (r.ok) {
 		lines.push(
 			r.owner_verified

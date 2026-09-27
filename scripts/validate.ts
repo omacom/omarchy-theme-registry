@@ -83,7 +83,7 @@ for (const { repo, slug } of repos) {
 				dir: co.dir,
 				repoUrl: repo,
 				meta,
-				...(listed ? { expectedRepoId: entry.repo_id ?? null } : {}),
+				...(listed ? { slug: entry.slug, expectedRepoId: entry.repo_id ?? null } : {}),
 				takenSlugs: registry.filter((e) => e.slug !== slug).map((e) => e.slug),
 				probeImage
 			});

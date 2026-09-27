@@ -240,6 +240,19 @@ cyan = "#689d6a"`,
 		expect(r.facts.slug).toBeNull();
 	});
 
+	it('checks the install name it is given, not the one the repo derives to', async () => {
+		const dir = await fixture('assigned', { 'colors.toml': TOKYO, 'preview.png': 'x' });
+		const r = await validateTheme({
+			dir,
+			repoUrl: 'https://github.com/x/omarchy-assigned-theme',
+			slug: 'assigned-x',
+			takenSlugs: ['assigned'],
+			probeImage: probe
+		});
+		expect(r.errors.map((e) => e.code)).not.toContain('SLUG_TAKEN');
+		expect(r.facts.slug).toBe('assigned-x');
+	});
+
 	it('flags slug collisions and image limits', async () => {
 		const dir = await fixture(
 			'limits',

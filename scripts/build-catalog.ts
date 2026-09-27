@@ -219,6 +219,7 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 			const report = await validateTheme({
 				dir: co.dir,
 				repoUrl: entry.repo,
+				slug,
 				meta,
 				expectedRepoId: entry.repo_id ?? null,
 				takenSlugs,

@@ -16,7 +16,7 @@ Once listed, the marketplace follows your repository's default branch: push chan
 
 The validator enforces what `omarchy theme install` enforces, plus a few things that make a good listing. Errors block; warnings are shown on your theme page as hints.
 
-**Errors** — repository missing or private; theme not at the repo root; symlinks; no palette (`colors.toml`, or a legacy `alacritty.toml` to derive from) or one missing required keys; no `preview.png` at the root, or narrower than 1000 px; images over 50 MB / 40 MP; repository over 400 MB; a name that is invalid, reserved by a built-in theme, or already taken (first come, first served).
+**Errors** — repository missing or private; theme not at the repo root; symlinks; no palette (`colors.toml`, or a legacy `alacritty.toml` to derive from) or one missing required keys; no `preview.png` at the root, or narrower than 1000 px; images over 50 MB / 40 MP; repository over 400 MB; an install name Omarchy refuses (rename the repo).
 
 **Warnings** — archived repo; files Omarchy drops on install (`*.lua`, terminal configs, `vscode.json`); undeclared or conflicting `mode`; heavy or oddly named backgrounds, or backgrounds in other subfolders; no README or LICENSE; no `omarchy-theme` topic; unconventional repo name; scripts or binaries in the repo (a marketplace install never checks them out); unknown `icons.theme`.
 
@@ -67,7 +67,7 @@ Read `CLAUDE.md` for the working conventions. The short version of everything el
 }
 ```
 
-`slug` is what Omarchy derives from the repo name (`omarchy-` prefix and `-theme` suffix stripped, lowercased). `repo_id` is GitHub's numeric id for the repository, recorded at submission. It survives renames and transfers, but a repository deleted and re-created under the same name gets a new one, so the build drops the theme (`REPO_REPLACED`) until a maintainer reviews it; an entry without one is not published (`REPO_UNPINNED`). An optional `tags` array adds curator tags ahead of the ones derived from topics.
+`slug` is the install name, and `omarchy theme install <slug>` installs into a directory of that name. The registry assigns it at submission: what Omarchy derives from the repo name (`omarchy-` prefix and `-theme` suffix stripped, lowercased), or, if a listed or built-in theme already has that name, the same with the owner's login appended (`gruvbox-oldjobobo`). `repo_id` is GitHub's numeric id for the repository, recorded at submission. It survives renames and transfers, but a repository deleted and re-created under the same name gets a new one, so the build drops the theme (`REPO_REPLACED`) until a maintainer reviews it; an entry without one is not published (`REPO_UNPINNED`). An optional `tags` array adds curator tags ahead of the ones derived from topics.
 
 **Curator overrides.** `overrides/featured.json` (array of slugs) and `overrides/hidden.json` (`{ "slug": "reason" }`, hides without giving up the slug). See `overrides/README.md`.
 

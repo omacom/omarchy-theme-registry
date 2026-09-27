@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalRepoUrl, deriveSlug, isValidSlug } from '../src/slug.ts';
+import { assignSlug, canonicalRepoUrl, deriveSlug, isValidSlug } from '../src/slug.ts';
 
 describe('deriveSlug (mirrors omarchy-theme-install)', () => {
 	it.each([
@@ -38,5 +38,21 @@ describe('canonicalRepoUrl', () => {
 	it('rejects non-github', () => {
 		expect(canonicalRepoUrl('https://gitlab.com/a/b')).toBeNull();
 		expect(canonicalRepoUrl('not a url')).toBeNull();
+	});
+});
+
+describe('assignSlug', () => {
+	const repo = 'https://github.com/Alice/omarchy-dracula-theme';
+	it('uses the derived name when it is free', () => {
+		expect(assignSlug(repo, 'Alice', ['nord-x'])).toBe('dracula');
+	});
+	it("appends the owner's login when a listed theme has the name", () => {
+		expect(assignSlug(repo, 'Alice', ['dracula'])).toBe('dracula-alice');
+	});
+	it('appends the owner when the name is a built-in theme', () => {
+		expect(assignSlug('https://github.com/Bob/omarchy-nord-theme', 'Bob', [])).toBe('nord-bob');
+	});
+	it('leaves an unusable name for the validator to report', () => {
+		expect(assignSlug('https://github.com/x/-bad', 'x', ['-bad'])).toBe('-bad');
 	});
 });

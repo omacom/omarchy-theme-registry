@@ -1,4 +1,4 @@
-import { SLUG_RE } from '@omarchy-themes/schema';
+import { BUILTIN_THEMES, SLUG_RE } from '@omarchy-themes/schema';
 
 /**
  * Mirrors `bin/omarchy-theme-install`:
@@ -20,6 +20,20 @@ export function deriveSlug(repoUrl: string): string {
 
 export function isValidSlug(slug: string): boolean {
 	return SLUG_RE.test(slug);
+}
+
+/**
+ * The install name the registry gives a new submission: what Omarchy derives from the repo name,
+ * or, when a listed theme or a built-in one already has that, the same name with the owner's
+ * login appended (`dracula` → `dracula-alice`). `omarchy theme install <name>` installs into the
+ * listed name, so the two themes sit side by side. An unusable derived name is returned as is
+ * for the validator to report.
+ */
+export function assignSlug(repoUrl: string, owner: string, taken: Iterable<string>): string {
+	const derived = deriveSlug(repoUrl);
+	const used = new Set<string>([...taken, ...BUILTIN_THEMES]);
+	if (!isValidSlug(derived) || !used.has(derived)) return derived;
+	return `${derived}-${owner.toLowerCase()}`;
 }
 
 /** Normalize any GitHub URL form to `https://github.com/<owner>/<repo>`. Returns null if not GitHub. */

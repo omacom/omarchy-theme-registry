@@ -1,4 +1,4 @@
-export { deriveSlug, isValidSlug, canonicalRepoUrl, repoOwnerAndName } from './slug.ts';
+export { assignSlug, deriveSlug, isValidSlug, canonicalRepoUrl, repoOwnerAndName } from './slug.ts';
 export {
 	parseColorsToml,
 	paletteFromAlacritty,
