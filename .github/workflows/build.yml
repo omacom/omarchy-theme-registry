@@ -9,7 +9,7 @@ on:
       - 'scripts/**'
       - '.github/workflows/build.yml'
   schedule:
-    - cron: '23 */6 * * *' # every 6 h — refresh stars, HEAD, liveness
+    - cron: '23 */6 * * *' # every 6 h — refresh stars, HEAD, validation
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write # commit state/liveness.json
+  contents: read
 
 jobs:
   build:
@@ -71,7 +71,7 @@ jobs:
               for (const [k, v] of Object.entries(r.counts)) console.log(`- ${k}: ${v}`);
               if (r.problems.length) {
                 console.log(""); console.log("| theme | status | detail |"); console.log("|---|---|---|");
-                for (const p of r.problems) console.log(`| ${p.slug} | ${p.status} | ${(p.errors ?? [p.reason ?? `strikes ${p.strikes}`]).slice(0,2).join("<br>").replaceAll("|","\\|")} |`);
+                for (const p of r.problems) console.log(`| ${p.slug} | ${p.status} | ${(p.errors ?? [p.reason ?? "repository missing"]).slice(0,2).join("<br>").replaceAll("|","\\|")} |`);
               }
             '
           } >> "$GITHUB_STEP_SUMMARY"
@@ -84,12 +84,3 @@ jobs:
             dist/v1/catalog.min.json
             dist/v1/report.json
           retention-days: 14
-
-      - name: Commit liveness state
-        if: github.event_name != 'pull_request'
-        run: |
-          git config user.name 'omarchy-themes-bot'
-          git config user.email 'omarchy-themes-bot@users.noreply.github.com'
-          git add state/
-          git diff --cached --quiet || git commit -m 'chore: update liveness state [skip ci]'
-          git push

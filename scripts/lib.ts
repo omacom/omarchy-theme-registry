@@ -7,7 +7,6 @@ import { Overrides, RegistryEntry, type RegistryEntry as Entry } from '@omarchy-
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const THEMES_DIR = join(ROOT, 'themes');
 export const OVERRIDES_DIR = join(ROOT, 'overrides');
-export const STATE_DIR = join(ROOT, 'state');
 export const DIST_DIR = join(ROOT, 'dist');
 export const WORK_DIR = join(ROOT, '.work');
 

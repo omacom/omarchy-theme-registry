@@ -51,7 +51,7 @@ Problems with a theme itself (it does not install, colours are off) belong in th
 
 Read `CLAUDE.md` for the working conventions. The short version of everything else:
 
-**Pipeline.** `themes/<slug>.json` (one file per theme, so submissions never conflict) → validator → `dist/v1/` catalog and WebP previews → Cloudflare R2 under `/v1/`. The catalog carries the default-branch commit that passed validation; a theme that starts failing keeps its last-good entry, and a repo missing three refreshes in a row is dropped until it returns (`state/liveness.json`).
+**Pipeline.** `themes/<slug>.json` (one file per theme, so submissions never conflict) → validator → `dist/v1/` catalog and WebP previews → Cloudflare R2 under `/v1/`. The catalog carries the default-branch commit that passed validation. A theme whose repo fails (missing, private, or failing validation) drops out of the next build; its `themes/<slug>.json` entry stays, so it returns on the first build it passes. Only a failure on the build's side, such as a GitHub outage, keeps the previously published entry.
 
 **Entry format.** Only what cannot be read from the repo:
 
@@ -72,7 +72,7 @@ Read `CLAUDE.md` for the working conventions. The short version of everything el
 
 **Submission queue.** [Open PRs labelled `auto-approve`](https://github.com/omacom/omarchy-theme-registry/pulls?q=is%3Apr+is%3Aopen+label%3Aauto-approve) were submitted by the repo owner: read the report in the PR body, glance at the preview, merge. PRs labelled `submission` without `auto-approve` came from someone else; confirm the author is fine with it first. Never hand-edit a submission PR; comment `/recheck` on its issue to regenerate it. To reject, close the issue. The `submission` label must exist before the first issue arrives; the workflow creates the rest.
 
-**Workflows.** `submit.yml` (issue → validate → PR, `/recheck`), `published.yml` (merged PR → notify and close the issue), `validate-pr.yml` (PRs to `overrides/`), `build.yml` (push to master excluding `themes/`, every 6 h, dispatch → build, upload, commit `state/`), `ci.yml` (lint, type-check, tests). Repository configuration: environment `R2-dev` with variables `CDN_BASE_URL`, `R2_BUCKET` and secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; without `R2_BUCKET` the build only attaches the catalog as an artifact. Optional `SUBMIT_TOKEN` secret so bot-opened PRs trigger checks.
+**Workflows.** `submit.yml` (issue → validate → PR, `/recheck`), `published.yml` (merged PR → notify and close the issue), `validate-pr.yml` (PRs to `overrides/`), `build.yml` (push to master excluding `themes/`, every 6 h, dispatch → build, upload), `ci.yml` (lint, type-check, tests). Repository configuration: environment `R2-dev` with variables `CDN_BASE_URL`, `R2_BUCKET` and secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; without `R2_BUCKET` the build only attaches the catalog as an artifact. Optional `SUBMIT_TOKEN` secret so bot-opened PRs trigger checks.
 
 **Published files** under `/v1/`: `catalog.json`, `catalog.min.json` (for the CLI), `catalog.json.sha256`, `themes/<slug>.json`, `previews/<slug>/<sha>/{1200,480}.webp` (immutable), `report.json`.
 

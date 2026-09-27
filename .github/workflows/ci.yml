@@ -5,7 +5,6 @@ on:
     paths-ignore:
       - 'themes/**'
       - 'overrides/**'
-      - 'state/**'
   push:
     branches: [master]
     paths:

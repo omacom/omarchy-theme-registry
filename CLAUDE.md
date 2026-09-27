@@ -17,8 +17,8 @@ Source of truth for the community themes listed on **themes.omarchy.org**. One s
 
 - `packages/schema` — Zod schemas and constants: `RegistryEntry`, `Overrides`, `CatalogTheme`/`Catalog`, `ValidationReport`, `INSTALLED_THEME_FILES`, `TAG_DENYLIST`/`TAG_DENY_PATTERN`, size limits, built-in theme names.
 - `packages/validator` — `validateTheme` (errors block, warnings publish; `facts.installed_files` is what a marketplace install checks out), `installedFiles`, `deriveSlug`/`canonicalRepoUrl`, palette parsing and hue bucketing, repo inspection, `GithubClient` (retries, `controlsRepo` for ownership), `cloneRepo`, `parseIssueForm`, `deriveTags` (catalog tags from GitHub topics minus boilerplate), `reportToMarkdown`. Tests in `packages/validator/test` (vitest).
-- `scripts/` — `validate.ts` (a URL, a slug, or `--changed`), `submit.ts` (issue form or flags → validated entry, `--write --json`), `build-catalog.ts` (clones every repo at default-branch HEAD, validates, renders WebP previews, writes `dist/v1/…`, keeps last-good entries, liveness strikes), `upload.ts` (R2 via S3 API, immutable preview keys), `lib.ts` (paths, `CDN_BASE_URL`, registry/overrides loaders).
-- `themes/*.json` entries; `overrides/featured.json` + `hidden.json` (curator-only, see `overrides/README.md`); `state/liveness.json` (bot-committed strike counts, see `state/README.md`).
+- `scripts/` — `validate.ts` (a URL, a slug, or `--changed`), `submit.ts` (issue form or flags → validated entry, `--write --json`), `build-catalog.ts` (clones every repo at default-branch HEAD, validates, renders WebP previews, writes `dist/v1/…`; drops themes whose repo fails, keeps the last published entry only when the build can't reach GitHub), `upload.ts` (R2 via S3 API, immutable preview keys), `lib.ts` (paths, `CDN_BASE_URL`, registry/overrides loaders).
+- `themes/*.json` entries; `overrides/featured.json` + `hidden.json` (curator-only, see `overrides/README.md`).
 - Published catalog: `/v1/catalog.json`, `catalog.min.json`, `catalog.json.sha256`, `themes/<slug>.json`, `previews/<slug>/<sha>/{1200,480}.webp`, `report.json`.
 
 ## Automation (`.github/workflows`)
@@ -26,7 +26,7 @@ Source of truth for the community themes listed on **themes.omarchy.org**. One s
 - `submit.yml` — issues from the "Submit a theme" form (label `submission`) and `/recheck` comments: validate, comment the report, on green write the entry and open/refresh a `submit/<slug>` PR (`auto-approve` when the submitter owns the repo; the PR body links the theme repo). The PR runs no checks by design — `submit.ts` has already validated the theme and the branch is only pushed on green. Uses `SUBMIT_TOKEN` if set, otherwise `GITHUB_TOKEN`.
 - `published.yml` — when a `submit/<slug>` PR merges: notify and close the issue, label `published`, delete the branch.
 - `validate-pr.yml` — PRs touching `overrides/` only. It deliberately does **not** watch `themes/`: `submit.yml` has already validated the entry before the `submit/<slug>` PR exists, and a second run only added a held `action_required` check for a maintainer to click.
-- `build.yml` — on push to master (code/`overrides/` only — **not** `themes/`, so merging a queue of submissions does not rebuild once per merge), every 6 h, and on dispatch: build, upload to R2, commit `state/`. A merged theme therefore goes live at the next scheduled build; user-facing copy must say so rather than promising it immediately.
+- `build.yml` — on push to master (code/`overrides/` only — **not** `themes/`, so merging a queue of submissions does not rebuild once per merge), every 6 h, and on dispatch: build and upload to R2. A merged theme therefore goes live at the next scheduled build; user-facing copy must say so rather than promising it immediately.
 - `ci.yml` — lint, type-check, tests.
 
 The `submission` label must exist before the first issue arrives (the workflow creates the others).
