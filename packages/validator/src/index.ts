@@ -18,7 +18,7 @@ export {
 	suspiciousFiles,
 	installedFiles
 } from './inspect.ts';
-export { GithubClient, type RepoMeta } from './github.ts';
+export { GithubClient, type RepoMeta, type RepoSnapshot } from './github.ts';
 export { cloneRepo, type Checkout } from './clone.ts';
 export {
 	validateTheme,

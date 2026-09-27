@@ -35,7 +35,6 @@ import {
 	validateTheme,
 	repoFindings,
 	REPO_META_CODES,
-	type RepoMeta,
 	deriveTags,
 	renderDigest,
 	installedChanges,
@@ -115,6 +114,10 @@ type Outcome =
 	| { slug: string; status: 'missing' };
 
 const entries = registry.filter((e) => !only || only.has(e.slug));
+// Metadata and default-branch HEAD for every theme up front, batched through GraphQL.
+const snapshots = await gh.repos(
+	entries.filter((e) => !overrides.hidden[e.slug]).map((e) => e.repo)
+);
 const allSlugs = registry.map((e) => e.slug);
 
 async function previewUrls(slug: string, sha: string) {
@@ -161,12 +164,10 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 			: { slug, status: 'excluded', reason: 'unreachable', errors: [reason] };
 	};
 
-	let meta: RepoMeta;
-	try {
-		meta = await gh.repo(entry.repo);
-	} catch (e) {
-		return unreachable(`GitHub error: ${(e as Error).message}`);
-	}
+	const snapshot = snapshots.get(entry.repo);
+	if (!snapshot || snapshot instanceof Error)
+		return unreachable(`GitHub error: ${snapshot?.message ?? 'no metadata'}`);
+	const { meta } = snapshot;
 
 	if (meta.missing) {
 		// Forget the last published entry, so a later outage cannot bring the theme back.
@@ -179,7 +180,7 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 
 	// Validate exactly what `omarchy theme install` clones: HEAD of the default branch.
 	// (Tags are ignored on purpose — they are rarely maintained and would pin stale previews.)
-	const sha = await gh.headSha(meta.htmlUrl, meta.defaultBranch);
+	const sha = snapshot.headSha;
 	if (!sha) return unreachable('could not resolve HEAD');
 
 	let record: CacheRecord;
