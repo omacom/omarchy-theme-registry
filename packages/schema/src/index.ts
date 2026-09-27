@@ -94,7 +94,9 @@ export const CatalogTheme = z.strictObject({
 	tags: z.array(z.string()),
 	featured: z.boolean(),
 	warnings: z.array(z.string()),
-	install: z.string().describe('the exact command to paste')
+	install: z
+		.string()
+		.describe('the command to paste: `omarchy theme install <slug>`, pinned to `commit`')
 });
 export type CatalogTheme = z.infer<typeof CatalogTheme>;
 

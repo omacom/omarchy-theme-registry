@@ -276,7 +276,7 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 		tags: deriveTags({ topics: meta.topics, entryTags: entry.tags, slug }),
 		featured: overrides.featured.includes(slug),
 		warnings: report.warnings.map((w) => w.code),
-		install: `omarchy theme install ${entry.repo}`
+		install: `omarchy theme install ${slug}`
 	} satisfies CatalogThemeT);
 
 	record.lastGood = theme;

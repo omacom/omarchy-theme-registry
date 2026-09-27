@@ -20,7 +20,7 @@ The validator enforces what `omarchy theme install` enforces, plus a few things 
 
 **Warnings** — archived repo; files Omarchy drops on install (`*.lua`, terminal configs, `vscode.json`); undeclared or conflicting `mode`; heavy or oddly named backgrounds, or backgrounds in other subfolders; no README or LICENSE; no `omarchy-theme` topic; unconventional repo name; scripts or binaries in the repo (a marketplace install never checks them out); unknown `icons.theme`.
 
-The report also lists what `omarchy theme install <name>` puts on a machine: only the files Omarchy reads from a theme (`colors.toml`, backgrounds, `preview.*`, `icons.theme`, `unlock.png`, `btop.theme`, `chromium.theme`, `shell.<section>.toml` and the like) plus your LICENSE and README. Anything else you ship — scripts, plugins, configs for other apps — stays in your repository, where `omarchy theme install <url>` still clones all of it.
+The report also lists what `omarchy theme install <name>` puts on a machine: only the files Omarchy reads from a theme (`colors.toml`, backgrounds, `preview.*`, `icons.theme`, `unlock.png`, `btop.theme`, `chromium.theme`, `shell.<section>.toml` and the like) plus your LICENSE and README. Anything else you ship — scripts, plugins, configs for other apps — stays in your repository and never reaches a user's machine.
 
 ### What shows up on the theme page
 
@@ -33,13 +33,13 @@ Everything comes from your repository, so keep it tidy there:
 
 ## Browse and install
 
-Browse at [themes.omarchy.org](https://themes.omarchy.org). Each theme page has the one-line install command:
+Browse at [themes.omarchy.org](https://themes.omarchy.org), or in Omarchy with `omarchy theme browse` (menu → Install → Style → Theme). Each theme page has the one-line install command:
 
 ```sh
-omarchy theme install https://github.com/<owner>/omarchy-<name>-theme
+omarchy theme install <name>
 ```
 
-Or in Omarchy: menu → Install → Style → Theme and paste the repository URL.
+Installing by name checks out the commit the registry validated, and only the files Omarchy reads; `omarchy theme update` moves it to the next validated commit.
 
 ## Something wrong with a listed theme?
 
