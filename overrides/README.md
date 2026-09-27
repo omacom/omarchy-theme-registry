@@ -25,7 +25,7 @@ An object of `slug → reason`. A hidden theme is left out of the catalog but ke
 }
 ```
 
-The reason is for maintainers and appears in `dist/v1/report.json` under `hidden`; it is not published to the site.
+The reason is for maintainers and appears in `dist/report.json` under `hidden`; it is not published to the site.
 
 ## Slugs, not names
 

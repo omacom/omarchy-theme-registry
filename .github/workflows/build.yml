@@ -66,7 +66,7 @@ jobs:
           {
             echo '### Catalog build'
             node -e '
-              const r = require("./dist/v1/report.json");
+              const r = require("./dist/report.json");
               console.log(`Generated ${r.generated_at}`);
               console.log("");
               for (const [k, v] of Object.entries(r.counts)) console.log(`- ${k}: ${v}`);
@@ -110,6 +110,6 @@ jobs:
           path: |
             dist/v1/catalog.json
             dist/v1/catalog.min.json
-            dist/v1/report.json
+            dist/report.json
             .work/digest-full.md
           retention-days: 14

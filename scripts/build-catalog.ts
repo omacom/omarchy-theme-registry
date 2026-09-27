@@ -10,7 +10,7 @@
  * validate → render previews → emit a CatalogTheme.
  *
  * A theme whose repo is at fault (missing, private, failing validation, no renderable preview)
- * is dropped from this build and listed in dist/v1/report.json. Its themes/<slug>.json entry
+ * is dropped from this build and listed in dist/report.json. Its themes/<slug>.json entry
  * stays, so it comes back on the first build it passes. Only a failure on the build's side
  * (GitHub API error, clone failure) keeps the entry this build last published, so an outage
  * cannot empty the catalog.
@@ -359,7 +359,8 @@ const report = {
 		outcomes.flatMap((o) => (o.status === 'ok' && o.warnings ? [[o.slug, o.theme.warnings]] : []))
 	)
 };
-await writeJson(join(OUT, 'report.json'), report);
+// For maintainers (run summary and saved run files), not published: it sits outside dist/v1/.
+await writeJson(join(DIST_DIR, 'report.json'), report);
 
 log(`\nCatalog: ${themes.length} themes → ${OUT}`);
 log(

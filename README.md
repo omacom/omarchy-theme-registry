@@ -75,7 +75,7 @@ Read `CLAUDE.md` for the working conventions. The short version of everything el
 
 **Workflows.** `submit.yml` (issue → validate → PR, `/recheck`), `published.yml` (merged PR → notify and close the issue), `validate-pr.yml` (PRs to `overrides/`), `build.yml` (push to master excluding `themes/`, every 6 h, dispatch → build, upload, then post what changed to the pinned "Catalog changes" issue), `ci.yml` (lint, type-check, tests). Repository configuration: environment `R2-dev` with variables `CDN_BASE_URL`, `R2_BUCKET` and secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; without `R2_BUCKET` the build only attaches the catalog as an artifact. Optional `SUBMIT_TOKEN` secret so bot-opened PRs trigger checks.
 
-**Published files** under `/v1/`: `catalog.json`, `catalog.min.json` (for the CLI), `catalog.json.sha256`, `themes/<slug>.json`, `previews/<slug>/<sha>/{1200,480}.webp` (immutable), `report.json`.
+**Published files** under `/v1/`: `catalog.json`, `catalog.min.json` (for the CLI), `catalog.json.sha256`, `themes/<slug>.json`, `previews/<slug>/<sha>/{1200,480}.webp` (immutable). Only live themes are on the CDN: the upload deletes the files of a theme that leaves the catalog. The build report (`dist/report.json`) stays with the build run.
 
 **Working locally.** Node 24, pnpm 12, `just`:
 
