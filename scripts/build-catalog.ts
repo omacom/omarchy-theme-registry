@@ -32,6 +32,8 @@ import {
 	GithubClient,
 	cloneRepo,
 	validateTheme,
+	repoFindings,
+	REPO_META_CODES,
 	type RepoMeta,
 	deriveTags
 } from '@omarchy-themes/validator';
@@ -198,15 +200,15 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 	) {
 		record = cached;
 		// re-run the repo-level checks that depend on live metadata without re-cloning
-		record.report.errors = record.report.errors.filter((e) => !e.code.startsWith('REPO_'));
-		record.report.warnings = record.report.warnings.filter((w) => !w.code.startsWith('REPO_'));
-		if (meta.isPrivate)
-			record.report.errors.push({ code: 'REPO_PRIVATE', message: 'Repository is private.' });
-		if (meta.isArchived)
-			record.report.warnings.push({
-				code: 'REPO_ARCHIVED',
-				message: 'Repository is archived; it still installs, but nobody maintains it.'
-			});
+		const repo = repoFindings(meta);
+		record.report.errors = [
+			...record.report.errors.filter((e) => !REPO_META_CODES.has(e.code)),
+			...repo.errors
+		];
+		record.report.warnings = [
+			...record.report.warnings.filter((w) => !REPO_META_CODES.has(w.code)),
+			...repo.warnings
+		];
 		record.report.ok = record.report.errors.length === 0;
 	} else if (noClone) {
 		if (cached?.lastGood)
@@ -275,7 +277,9 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 		added_at: entry.added_at,
 		tags: deriveTags({ topics: meta.topics, entryTags: entry.tags, slug }),
 		featured: overrides.featured.includes(slug),
-		warnings: report.warnings.map((w) => w.code),
+		// Repository hygiene (topic, license, name, archived…) is for the artist's submission report.
+		// A marketplace install only checks out theme files, so it says nothing to someone installing.
+		warnings: report.warnings.filter((w) => !w.code.startsWith('REPO_')).map((w) => w.code),
 		install: `omarchy theme install ${slug}`
 	} satisfies CatalogThemeT);
 

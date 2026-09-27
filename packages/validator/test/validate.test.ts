@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, symlink, writeFile, chmod } from 'node:fs/promises'
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { validateTheme } from '../src/validate.ts';
+import { REPO_META_CODES, repoFindings, validateTheme } from '../src/validate.ts';
 import type { RepoMeta } from '../src/github.ts';
 
 const TOKYO = `
@@ -281,5 +281,32 @@ cyan = "#689d6a"`,
 		expect(r.facts.backgrounds.count).toBe(1);
 		expect(r.facts.installed_files).not.toContain('install.sh');
 		expect(r.facts.installed_files).toContain('light.mode');
+	});
+});
+
+describe('repoFindings', () => {
+	it('is clean for a healthy repo', () => {
+		expect(repoFindings(meta())).toEqual({ errors: [], warnings: [] });
+	});
+
+	it('blocks private and oversized repos from metadata alone', () => {
+		const { errors } = repoFindings(meta({ isPrivate: true, sizeKb: 500 * 1024 }));
+		expect(errors.map((e) => e.code).sort()).toEqual(['REPO_PRIVATE', 'REPO_TOO_LARGE']);
+	});
+
+	it('only produces codes listed in REPO_META_CODES', () => {
+		const { errors, warnings } = repoFindings(
+			meta({
+				missing: true,
+				isPrivate: true,
+				isArchived: true,
+				movedTo: 'https://github.com/y/z',
+				sizeKb: 500 * 1024,
+				topics: [],
+				license: null
+			})
+		);
+		const codes = [...errors, ...warnings].map((f) => f.code);
+		expect(new Set(codes)).toEqual(REPO_META_CODES);
 	});
 });

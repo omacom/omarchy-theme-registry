@@ -59,6 +59,40 @@ function fmtMb(bytes: number): string {
 	return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/** Every code `repoFindings` can produce. */
+export const REPO_META_CODES: ReadonlySet<string> = new Set([
+	'REPO_MISSING',
+	'REPO_PRIVATE',
+	'REPO_ARCHIVED',
+	'REPO_MOVED',
+	'REPO_TOO_LARGE',
+	'REPO_NO_TOPIC',
+	'REPO_NO_LICENSE'
+]);
+
+/**
+ * The checks that depend only on GitHub metadata, not on the checked-out tree. The catalog build
+ * re-runs them on a cached validation, since the metadata can change without a new commit.
+ */
+export function repoFindings(meta: RepoMeta): { errors: Finding[]; warnings: Finding[] } {
+	const r = new Report();
+	if (meta.missing) r.error('REPO_MISSING', 'Repository does not exist or is not accessible.');
+	if (meta.isPrivate) r.error('REPO_PRIVATE', 'Repository is private.');
+	if (meta.isArchived)
+		r.warn('REPO_ARCHIVED', 'Repository is archived; it still installs, but nobody maintains it.');
+	if (meta.movedTo)
+		r.warn('REPO_MOVED', `Repository has moved to ${meta.movedTo}; update the registry entry.`);
+	if (meta.sizeKb * 1024 > LIMITS.repoSizeBytes)
+		r.error(
+			'REPO_TOO_LARGE',
+			`Repository is ${fmtMb(meta.sizeKb * 1024)}; the limit is ${fmtMb(LIMITS.repoSizeBytes)}.`
+		);
+	if (!meta.topics.includes('omarchy-theme'))
+		r.warn('REPO_NO_TOPIC', 'Add the GitHub topic `omarchy-theme` so the theme is discoverable.');
+	if (!meta.license) r.warn('REPO_NO_LICENSE', 'GitHub reports no recognised license.');
+	return { errors: r.errors, warnings: r.warnings };
+}
+
 export async function validateTheme(opts: ValidateOptions): Promise<ValidationReport> {
 	const r = new Report();
 	const meta = opts.meta ?? null;
@@ -66,23 +100,9 @@ export async function validateTheme(opts: ValidateOptions): Promise<ValidationRe
 
 	// ── repo-level ─────────────────────────────────────────────────────────
 	if (meta) {
-		if (meta.missing) r.error('REPO_MISSING', 'Repository does not exist or is not accessible.');
-		if (meta.isPrivate) r.error('REPO_PRIVATE', 'Repository is private.');
-		if (meta.isArchived)
-			r.warn(
-				'REPO_ARCHIVED',
-				'Repository is archived; it still installs, but nobody maintains it.'
-			);
-		if (meta.movedTo)
-			r.warn('REPO_MOVED', `Repository has moved to ${meta.movedTo}; update the registry entry.`);
-		if (meta.sizeKb * 1024 > LIMITS.repoSizeBytes)
-			r.error(
-				'REPO_TOO_LARGE',
-				`Repository is ${fmtMb(meta.sizeKb * 1024)}; the limit is ${fmtMb(LIMITS.repoSizeBytes)}.`
-			);
-		if (!meta.topics.includes('omarchy-theme'))
-			r.warn('REPO_NO_TOPIC', 'Add the GitHub topic `omarchy-theme` so the theme is discoverable.');
-		if (!meta.license) r.warn('REPO_NO_LICENSE', 'GitHub reports no recognised license.');
+		const repo = repoFindings(meta);
+		r.errors.push(...repo.errors);
+		r.warnings.push(...repo.warnings);
 	}
 
 	// ── slug ───────────────────────────────────────────────────────────────
