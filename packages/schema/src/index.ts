@@ -38,6 +38,9 @@ export const Generation = z.enum(GENERATIONS);
 export const RegistryEntry = z.strictObject({
 	slug: Slug,
 	repo: RepoUrl,
+	/** GitHub's numeric id for `repo`, recorded at submission. A repo deleted and re-created under
+	 * the same name gets a new id, so the build refuses to follow it. */
+	repo_id: z.int().positive().optional(),
 	name: z.string().trim().min(1).max(60),
 	submitted_by: z.union([GithubLogin, z.literal('import')]),
 	added_at: isoDate,

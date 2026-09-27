@@ -74,12 +74,16 @@ for (const { repo, slug } of repos) {
 		report.warnings = [];
 		report.ok = false;
 	} else {
+		// A listed theme is held to the repository its entry pins, as in the catalog build.
+		const entry = slug ? bySlug.get(slug) : undefined;
+		const listed = entry && entry.repo.toLowerCase() === repo.toLowerCase();
 		const co = await cloneRepo(repo);
 		try {
 			report = await validateTheme({
 				dir: co.dir,
 				repoUrl: repo,
 				meta,
+				...(listed ? { expectedRepoId: entry.repo_id ?? null } : {}),
 				takenSlugs: registry.filter((e) => e.slug !== slug).map((e) => e.slug),
 				probeImage
 			});

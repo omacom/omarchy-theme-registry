@@ -40,6 +40,11 @@ export interface ValidateOptions {
 	meta?: RepoMeta | null;
 	/** slugs already in the registry (excluding this theme's own, when re-validating) */
 	takenSlugs?: Iterable<string>;
+	/**
+	 * The registry entry's `repo_id`, when validating a listed theme: `null` if the entry has none.
+	 * Leave it out for a repo that is not listed yet (a submission).
+	 */
+	expectedRepoId?: number | null;
 	/** image dimension probe; injected so the validator has no hard dependency on sharp */
 	probeImage?: (absPath: string) => Promise<{ width: number; height: number } | null>;
 }
@@ -67,16 +72,32 @@ export const REPO_META_CODES: ReadonlySet<string> = new Set([
 	'REPO_MOVED',
 	'REPO_TOO_LARGE',
 	'REPO_NO_TOPIC',
-	'REPO_NO_LICENSE'
+	'REPO_NO_LICENSE',
+	'REPO_UNPINNED',
+	'REPO_REPLACED'
 ]);
 
 /**
  * The checks that depend only on GitHub metadata, not on the checked-out tree. The catalog build
  * re-runs them on a cached validation, since the metadata can change without a new commit.
+ * `expectedRepoId` is as in {@link ValidateOptions}.
  */
-export function repoFindings(meta: RepoMeta): { errors: Finding[]; warnings: Finding[] } {
+export function repoFindings(
+	meta: RepoMeta,
+	expectedRepoId?: number | null
+): { errors: Finding[]; warnings: Finding[] } {
 	const r = new Report();
 	if (meta.missing) r.error('REPO_MISSING', 'Repository does not exist or is not accessible.');
+	else if (expectedRepoId === null)
+		r.error(
+			'REPO_UNPINNED',
+			`The registry entry has no repo_id, so this can't be confirmed as the repository that was submitted. A maintainer must check it and add repo_id ${meta.id}.`
+		);
+	else if (expectedRepoId !== undefined && meta.id !== expectedRepoId)
+		r.error(
+			'REPO_REPLACED',
+			`This is not the repository that was submitted: its id is ${meta.id}, the registry entry pins ${expectedRepoId}. It was deleted and re-created, or replaced. A maintainer must review it before it is listed again.`
+		);
 	if (meta.isPrivate) r.error('REPO_PRIVATE', 'Repository is private.');
 	if (meta.isArchived)
 		r.warn('REPO_ARCHIVED', 'Repository is archived; it still installs, but nobody maintains it.');
@@ -100,7 +121,7 @@ export async function validateTheme(opts: ValidateOptions): Promise<ValidationRe
 
 	// ── repo-level ─────────────────────────────────────────────────────────
 	if (meta) {
-		const repo = repoFindings(meta);
+		const repo = repoFindings(meta, opts.expectedRepoId);
 		r.errors.push(...repo.errors);
 		r.warnings.push(...repo.warnings);
 	}

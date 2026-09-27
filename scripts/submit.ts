@@ -125,6 +125,7 @@ if (canon) {
 			const parsed = RegistryEntry.safeParse({
 				slug: result.slug,
 				repo: result.repo,
+				repo_id: meta.id,
 				name: result.name,
 				submitted_by: submittedBy,
 				added_at: new Date().toISOString().slice(0, 10)

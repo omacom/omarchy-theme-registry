@@ -35,6 +35,7 @@ bright_magenta = "#bb9af7"
 `;
 
 const meta = (over: Partial<RepoMeta> = {}): RepoMeta => ({
+	id: 42,
 	owner: 'x',
 	name: 'omarchy-fixture-theme',
 	htmlUrl: 'https://github.com/x/omarchy-fixture-theme',
@@ -294,19 +295,33 @@ describe('repoFindings', () => {
 		expect(errors.map((e) => e.code).sort()).toEqual(['REPO_PRIVATE', 'REPO_TOO_LARGE']);
 	});
 
+	it('holds a listed theme to the repository id its entry pins', () => {
+		expect(repoFindings(meta(), 42).errors).toEqual([]);
+		expect(repoFindings(meta({ id: 7 }), 42).errors.map((e) => e.code)).toEqual(['REPO_REPLACED']);
+		expect(repoFindings(meta(), null).errors.map((e) => e.code)).toEqual(['REPO_UNPINNED']);
+	});
+
+	it('does not check identity for a submission or a missing repo', () => {
+		expect(repoFindings(meta({ id: 7 })).errors).toEqual([]);
+		expect(repoFindings(meta({ missing: true, id: 0 }), 42).errors.map((e) => e.code)).toEqual([
+			'REPO_MISSING'
+		]);
+	});
+
 	it('only produces codes listed in REPO_META_CODES', () => {
-		const { errors, warnings } = repoFindings(
-			meta({
-				missing: true,
-				isPrivate: true,
-				isArchived: true,
-				movedTo: 'https://github.com/y/z',
-				sizeKb: 500 * 1024,
-				topics: [],
-				license: null
-			})
-		);
-		const codes = [...errors, ...warnings].map((f) => f.code);
+		const everything = meta({
+			isPrivate: true,
+			isArchived: true,
+			movedTo: 'https://github.com/y/z',
+			sizeKb: 500 * 1024,
+			topics: [],
+			license: null
+		});
+		const codes = [
+			repoFindings({ ...everything, missing: true }),
+			repoFindings(everything, null),
+			repoFindings({ ...everything, id: 7 }, 42)
+		].flatMap((r) => [...r.errors, ...r.warnings].map((f) => f.code));
 		expect(new Set(codes)).toEqual(REPO_META_CODES);
 	});
 });

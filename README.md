@@ -60,13 +60,14 @@ Read `CLAUDE.md` for the working conventions. The short version of everything el
 {
 	"slug": "sunset-drive",
 	"repo": "https://github.com/tahayvr/omarchy-sunset-drive-theme",
+	"repo_id": 1081229482,
 	"name": "Sunset Drive",
 	"submitted_by": "tahayvr",
 	"added_at": "2026-09-07"
 }
 ```
 
-`slug` is what Omarchy derives from the repo name (`omarchy-` prefix and `-theme` suffix stripped, lowercased). An optional `tags` array adds curator tags ahead of the ones derived from topics.
+`slug` is what Omarchy derives from the repo name (`omarchy-` prefix and `-theme` suffix stripped, lowercased). `repo_id` is GitHub's numeric id for the repository, recorded at submission. It survives renames and transfers, but a repository deleted and re-created under the same name gets a new one, so the build drops the theme (`REPO_REPLACED`) until a maintainer reviews it; an entry without one is not published (`REPO_UNPINNED`). An optional `tags` array adds curator tags ahead of the ones derived from topics.
 
 **Curator overrides.** `overrides/featured.json` (array of slugs) and `overrides/hidden.json` (`{ "slug": "reason" }`, hides without giving up the slug). See `overrides/README.md`.
 

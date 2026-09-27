@@ -183,7 +183,7 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 	) {
 		record = cached;
 		// re-run the repo-level checks that depend on live metadata without re-cloning
-		const repo = repoFindings(meta);
+		const repo = repoFindings(meta, entry.repo_id ?? null);
 		record.report.errors = [
 			...record.report.errors.filter((e) => !REPO_META_CODES.has(e.code)),
 			...repo.errors
@@ -208,6 +208,7 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 				dir: co.dir,
 				repoUrl: entry.repo,
 				meta,
+				expectedRepoId: entry.repo_id ?? null,
 				takenSlugs,
 				probeImage
 			});

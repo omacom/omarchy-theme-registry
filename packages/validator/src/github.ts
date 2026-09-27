@@ -1,6 +1,8 @@
 import { repoOwnerAndName } from './slug.ts';
 
 export interface RepoMeta {
+	/** GitHub's numeric repository id: survives renames and transfers, never reused */
+	id: number;
 	owner: string;
 	name: string;
 	/** canonical https URL (follows renames) */
@@ -74,6 +76,7 @@ export class GithubClient {
 		const res = await this.#get(`/repos/${owner}/${name}`);
 		if (res.status === 404 || res.status === 451) {
 			return {
+				id: 0,
 				owner,
 				name,
 				htmlUrl: canonicalUrl,
@@ -94,6 +97,7 @@ export class GithubClient {
 		}
 		if (!res.ok) throw new Error(`GitHub ${res.status} for ${owner}/${name}`);
 		const j = (await res.json()) as {
+			id: number;
 			html_url: string;
 			description: string | null;
 			private: boolean;
@@ -111,6 +115,7 @@ export class GithubClient {
 		};
 		const movedTo = j.html_url.toLowerCase() !== canonicalUrl.toLowerCase() ? j.html_url : null;
 		return {
+			id: j.id,
 			owner: j.owner.login,
 			name: j.name,
 			htmlUrl: j.html_url,
