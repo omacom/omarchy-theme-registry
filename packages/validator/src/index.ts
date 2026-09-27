@@ -38,3 +38,16 @@ export {
 	type DigestTheme,
 	type FileChange
 } from './digest.ts';
+export {
+	planHealth,
+	noticeBody,
+	codesOf,
+	codesFromMarker,
+	errorCode,
+	healthMarker,
+	BROKEN_LABEL,
+	type BrokenTheme,
+	type HealthAction,
+	type HealthInput,
+	type HealthIssue
+} from './health.ts';

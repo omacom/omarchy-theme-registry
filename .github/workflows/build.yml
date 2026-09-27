@@ -18,7 +18,7 @@ concurrency:
 
 permissions:
   contents: read
-  issues: write # post the change digest on the pinned issue
+  issues: write # post the change digest on the pinned issue; tell artists when their theme is out
 
 jobs:
   build:
@@ -103,6 +103,14 @@ jobs:
           fi
           { cat .work/digest.md; echo; echo "[Build run]($RUN_URL)"; } > comment.md
           gh issue comment "$ISSUE" --body-file comment.md
+
+      # A listed theme left out because of its repository: tell the artist on its submission issue
+      # (reopened) or a new one, and close it when the theme is back. Only after a real upload.
+      - name: Tell artists about themes that are out
+        if: ${{ vars.R2_BUCKET != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/notify-artists.ts
 
       - uses: actions/upload-artifact@v6
         with:

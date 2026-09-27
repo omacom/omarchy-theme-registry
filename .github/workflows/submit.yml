@@ -28,6 +28,7 @@ jobs:
   submit:
     if: >-
       contains(github.event.issue.labels.*.name, 'submission') &&
+      !contains(github.event.issue.labels.*.name, 'theme-broken') &&
       !github.event.issue.pull_request &&
       (
         github.event_name == 'issues' ||

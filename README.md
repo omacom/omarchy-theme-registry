@@ -12,6 +12,8 @@ The list of community themes behind [themes.omarchy.org](https://themes.omarchy.
 
 Once listed, the marketplace follows your repository's default branch: push changes and the listing updates on the next refresh (every six hours). Updates never need a new submission.
 
+If a change breaks the theme (or the repository goes missing), it drops off the marketplace at the next refresh and the bot tells you: it reopens your submission issue, or opens a new one, mentions you, and lists what to fix. Push the fix and the theme comes back on the next refresh; the issue closes itself.
+
 ### What gets checked
 
 The validator enforces what `omarchy theme install` enforces, plus a few things that make a good listing. Errors block; warnings are shown on your theme page as hints.
