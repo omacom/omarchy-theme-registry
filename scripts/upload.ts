@@ -103,46 +103,53 @@ if (client) {
 	}
 }
 
-// Previews first, then JSON, so a catalog never references a missing image; the catalog's hash
-// last, so it never describes a catalog that is not up yet.
-const order = (f: string) => (f.endsWith('.sha256') ? 2 : f.endsWith('.json') ? 1 : 0);
-files.sort((a, b) => order(a) - order(b));
+// In phases, each finished before the next starts: previews, so no JSON references a missing
+// image; the per-theme files; the catalogs; and the catalog's hash last, so it never describes a
+// catalog that is not up yet.
+const phase = (k: string) =>
+	k.endsWith('.sha256') ? 3 : k.startsWith('v1/catalog') ? 2 : k.endsWith('.json') ? 1 : 0;
 
 let uploaded = 0;
 let skipped = 0;
-await mapLimit(files, 8, async (abs) => {
-	const key = keyOf(abs);
-	const body = await readFile(abs);
-	const md5 = createHash('md5').update(body).digest('hex');
-	const immutable = key.includes('/previews/');
-	const cacheControl = immutable
-		? 'public, max-age=31536000, immutable'
-		: 'public, max-age=300, stale-while-revalidate=3600';
-	if (dryRun) {
-		const { size } = await stat(abs);
-		log(`would upload ${key} (${size} B, ${cacheControl})`);
-	} else {
-		try {
-			const head = await client!.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-			if (head.ETag?.replaceAll('"', '') === md5) {
-				skipped++;
-				return;
+for (const p of [0, 1, 2, 3]) {
+	await mapLimit(
+		files.filter((f) => phase(keyOf(f)) === p),
+		8,
+		async (abs) => {
+			const key = keyOf(abs);
+			const body = await readFile(abs);
+			const md5 = createHash('md5').update(body).digest('hex');
+			const immutable = key.includes('/previews/');
+			const cacheControl = immutable
+				? 'public, max-age=31536000, immutable'
+				: 'public, max-age=300, stale-while-revalidate=3600';
+			if (dryRun) {
+				const { size } = await stat(abs);
+				log(`would upload ${key} (${size} B, ${cacheControl})`);
+			} else {
+				try {
+					const head = await client!.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+					if (head.ETag?.replaceAll('"', '') === md5) {
+						skipped++;
+						return;
+					}
+				} catch {
+					/* not found → upload */
+				}
+				await client!.send(
+					new PutObjectCommand({
+						Bucket: bucket,
+						Key: key,
+						Body: body,
+						ContentType: CONTENT_TYPES[extname(key)] ?? 'application/octet-stream',
+						CacheControl: cacheControl
+					})
+				);
 			}
-		} catch {
-			/* not found → upload */
+			uploaded++;
 		}
-		await client!.send(
-			new PutObjectCommand({
-				Bucket: bucket,
-				Key: key,
-				Body: body,
-				ContentType: CONTENT_TYPES[extname(key)] ?? 'application/octet-stream',
-				CacheControl: cacheControl
-			})
-		);
-	}
-	uploaded++;
-});
+	);
+}
 log(`${dryRun ? 'Would upload' : 'Uploaded'} ${uploaded}, unchanged ${skipped}`);
 
 // ── prune ────────────────────────────────────────────────────────────────

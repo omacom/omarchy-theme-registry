@@ -21,7 +21,15 @@ import {
 	type BrokenTheme,
 	type HealthIssue
 } from '@omarchy-themes/validator';
-import { DIST_DIR, SITE_URL, githubToken, loadRegistry, log, readJson } from './lib.ts';
+import {
+	DIST_DIR,
+	REGISTRY_REPO as REPO,
+	SITE_URL,
+	githubToken,
+	loadRegistry,
+	log,
+	readJson
+} from './lib.ts';
 
 const { values: args } = parseArgs({
 	options: {
@@ -30,7 +38,6 @@ const { values: args } = parseArgs({
 	}
 });
 const dryRun = args['dry-run'];
-const REPO = process.env.GITHUB_REPOSITORY ?? 'omacom/omarchy-theme-registry';
 const token = githubToken();
 if (!token) throw new Error('GITHUB_TOKEN is required');
 

@@ -131,6 +131,14 @@ describe('planHealth', () => {
 		expect(actions).toMatchObject([{ kind: 'resolve', issue: 12 }]);
 	});
 
+	it('asks nothing of the artist for problems only a maintainer can fix', () => {
+		const replaced = 'REPO_REPLACED: This is not the repository that was submitted.';
+		expect(planHealth(input({ broken: [broken('dune', [replaced])] }))).toEqual([]);
+		const [a] = planHealth(input({ broken: [broken('dune', [replaced, PREVIEW])] }));
+		expect(codesFromMarker(a!.body)).toEqual(['PREVIEW_MISSING']);
+		expect(a!.body).not.toContain('REPO_REPLACED');
+	});
+
 	it('matches repositories regardless of case', () => {
 		const actions = planHealth(
 			input({

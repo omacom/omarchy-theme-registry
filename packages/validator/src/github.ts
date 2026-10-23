@@ -232,6 +232,38 @@ export class GithubClient {
 		);
 	}
 
+	/**
+	 * Entries waiting in the registry's open `submit/<slug>` pull requests: slug → theme repo URL.
+	 * A slug there is claimed until the PR is merged or closed, so another submission cannot
+	 * take over its branch.
+	 */
+	async pendingSubmissions(registry: string): Promise<Map<string, string>> {
+		const out = new Map<string, string>();
+		for (let page = 1; ; page++) {
+			const res = await this.#get(`/repos/${registry}/pulls?state=open&per_page=100&page=${page}`);
+			if (!res.ok) throw new Error(`GitHub ${res.status} listing pull requests of ${registry}`);
+			const prs = (await res.json()) as { head: { ref: string } }[];
+			for (const { head } of prs) {
+				const slug = /^submit\/(.+)$/.exec(head.ref)?.[1];
+				if (!slug) continue;
+				const file = await this.#get(
+					`/repos/${registry}/contents/themes/${encodeURIComponent(slug)}.json?ref=${encodeURIComponent(head.ref)}`
+				);
+				if (!file.ok) continue;
+				try {
+					const { content } = (await file.json()) as { content?: string };
+					const entry = JSON.parse(Buffer.from(content ?? '', 'base64').toString('utf8')) as {
+						repo?: unknown;
+					};
+					if (typeof entry.repo === 'string') out.set(slug, entry.repo);
+				} catch {
+					// not an entry; nothing to claim
+				}
+			}
+			if (prs.length < 100) return out;
+		}
+	}
+
 	async headSha(canonicalUrl: string, branch: string): Promise<string | null> {
 		const { owner, name } = repoOwnerAndName(canonicalUrl);
 		const res = await this.#get(`/repos/${owner}/${name}/commits/${encodeURIComponent(branch)}`);

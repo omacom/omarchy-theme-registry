@@ -2,7 +2,12 @@ name: Submission
 
 # Issue-driven submissions: an issue from the "Submit a theme" form (label `submission`) is
 # validated, gets a report comment, and — when green — a PR adding themes/<slug>.json.
-# Commenting `/recheck` on the issue re-runs everything.
+# Commenting `/recheck` on the issue re-runs everything. Issues already `published` are left alone.
+#
+# Two jobs, so no write token is around while untrusted code is handled: `validate` clones the
+# submitted repository and decodes its images with a read-only token and no stored credentials,
+# then hands its result to `publish`, which comments, labels and opens the PR. When `validate`
+# crashes (rate limit, clone timeout) `publish` says so on the issue instead.
 #
 # The submission PR deliberately runs no checks: submit.ts below has already validated the theme
 # and the branch is only pushed when it passes, so validate-pr.yml no longer watches `themes/`.
@@ -15,13 +20,10 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+permissions: {}
 
 jobs:
-  submit:
+  validate:
     # Job-level, so only runs that pass the `if` join the group: a plain comment on the issue
     # (or the bot's own report comment) must not cancel a validation in progress.
     concurrency:
@@ -30,6 +32,7 @@ jobs:
     if: >-
       contains(github.event.issue.labels.*.name, 'submission') &&
       !contains(github.event.issue.labels.*.name, 'theme-broken') &&
+      !contains(github.event.issue.labels.*.name, 'published') &&
       !github.event.issue.pull_request &&
       (
         github.event_name == 'issues' ||
@@ -43,14 +46,19 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      GH_TOKEN: ${{ secrets.SUBMIT_TOKEN || secrets.GITHUB_TOKEN }}
-      ISSUE: ${{ github.event.issue.number }}
-      SUBMITTER: ${{ github.event.issue.user.login }}
+    permissions:
+      contents: read
+      pull-requests: read # open submit/<slug> PRs claim their slugs
+    outputs:
+      ok: ${{ steps.validate.outputs.ok }}
+      slug: ${{ steps.validate.outputs.slug }}
+      name: ${{ steps.validate.outputs.name }}
+      repo: ${{ steps.validate.outputs.repo }}
+      owner: ${{ steps.validate.outputs.owner }}
     steps:
       - uses: actions/checkout@v5
         with:
-          token: ${{ secrets.SUBMIT_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
@@ -59,18 +67,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: Ensure labels exist
-        run: |
-          gh label create submission    --color 0e8a16 --description 'Theme submission from the issue form' --force
-          gh label create validated     --color 0e8a16 --description 'Validation passed; PR opened' --force
-          gh label create needs-changes --color d93f0b --description 'Validation failed; author must fix the repo' --force
-          gh label create auto-approve  --color 5319e7 --description 'Submitter owns the repo; safe to merge on green' --force
-          gh label create published     --color 1d76db --description 'Merged and in the catalog' --force
-
       - name: Validate submission
         id: validate
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
+          SUBMITTER: ${{ github.event.issue.user.login }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$ISSUE_BODY" > body.md
@@ -85,6 +86,56 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           cat report.md >> "$GITHUB_STEP_SUMMARY"
 
+      - uses: actions/upload-artifact@v6
+        with:
+          name: submission
+          path: |
+            report.md
+            themes/${{ steps.validate.outputs.slug }}.json
+          if-no-files-found: ignore
+          retention-days: 3
+
+  publish:
+    needs: validate
+    if: always() && (needs.validate.result == 'success' || needs.validate.result == 'failure')
+    concurrency:
+      group: submission-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.SUBMIT_TOKEN || secrets.GITHUB_TOKEN }}
+      ISSUE: ${{ github.event.issue.number }}
+      SUBMITTER: ${{ github.event.issue.user.login }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.SUBMIT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Report a crash
+        if: needs.validate.result == 'failure'
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue comment "$ISSUE" --body "Validation could not finish ([run log]($RUN_URL)). This is a problem on our side, not with your theme: GitHub may be rate limiting us, or the repository took too long to clone. Comment \`/recheck\` to try again in a while."
+          exit 1
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: submission
+
+      - name: Ensure labels exist
+        run: |
+          gh label create submission    --color 0e8a16 --description 'Theme submission from the issue form' --force
+          gh label create validated     --color 0e8a16 --description 'Validation passed; PR opened' --force
+          gh label create needs-changes --color d93f0b --description 'Validation failed; author must fix the repo' --force
+          gh label create auto-approve  --color 5319e7 --description 'Submitter owns the repo; safe to merge on green' --force
+          gh label create published     --color 1d76db --description 'Merged and in the catalog' --force
+
       - name: Report on the issue
         run: |
           {
@@ -94,16 +145,16 @@ jobs:
           gh issue comment "$ISSUE" --body-file comment.md
 
       - name: Label as needs-changes
-        if: steps.validate.outputs.ok != 'true'
+        if: needs.validate.outputs.ok != 'true'
         run: gh issue edit "$ISSUE" --remove-label validated,auto-approve --add-label needs-changes
 
       - name: Open or update the pull request
-        if: steps.validate.outputs.ok == 'true'
+        if: needs.validate.outputs.ok == 'true'
         env:
-          SLUG: ${{ steps.validate.outputs.slug }}
-          NAME: ${{ steps.validate.outputs.name }}
-          REPO: ${{ steps.validate.outputs.repo }}
-          OWNER: ${{ steps.validate.outputs.owner }}
+          SLUG: ${{ needs.validate.outputs.slug }}
+          NAME: ${{ needs.validate.outputs.name }}
+          REPO: ${{ needs.validate.outputs.repo }}
+          OWNER: ${{ needs.validate.outputs.owner }}
         run: |
           git config user.name 'omarchy-themes-bot'
           git config user.email 'omarchy-themes-bot@users.noreply.github.com'
@@ -135,6 +186,7 @@ jobs:
             gh pr comment "$PR" --body 'Re-validated after `/recheck`; the branch and description were updated.'
           else
             PR=$(gh pr create --head "$BRANCH" --base master --title "Add theme: $NAME ($SLUG)" --body-file pr.md --label submission | grep -oE '[0-9]+$')
+            gh issue comment "$ISSUE" --body "Pull request opened: #$PR. A maintainer will merge it and your theme goes live with the next catalog build."
           fi
 
           if [ "$OWNER" = 'true' ]; then
@@ -144,4 +196,3 @@ jobs:
             gh pr edit "$PR" --remove-label auto-approve
             gh issue edit "$ISSUE" --remove-label needs-changes,auto-approve --add-label validated
           fi
-          gh issue comment "$ISSUE" --body "Pull request opened: #$PR. A maintainer will merge it and your theme goes live with the next catalog build."

@@ -18,10 +18,18 @@ import {
 	deriveSlug,
 	parseIssueForm,
 	reportToMarkdown,
+	repoFindings,
 	validateTheme
 } from '@omarchy-themes/validator';
 import { RegistryEntry, type Finding, type ValidationReport } from '@omarchy-themes/schema';
-import { THEMES_DIR, githubToken, loadRegistry, probeImage, writeJson } from './lib.ts';
+import {
+	REGISTRY_REPO,
+	THEMES_DIR,
+	githubToken,
+	loadRegistry,
+	probeImage,
+	writeJson
+} from './lib.ts';
 
 const { values: args } = parseArgs({
 	options: {
@@ -108,8 +116,18 @@ if (canon) {
 		);
 	} else if (meta.missing) {
 		fail('REPO_MISSING', 'Repository does not exist or is not public.');
+	} else if (repoFindings(meta).errors.length) {
+		// Private or too large: GitHub's metadata already says so, no need to clone it first.
+		for (const e of repoFindings(meta).errors) fail(e.code, e.message);
 	} else {
-		const takenSlugs = registry.map((e) => e.slug);
+		// Slugs waiting in another submission's open pull request are taken too; otherwise both
+		// would write themes/<slug>.json and push to the same submit/<slug> branch.
+		const pending = await gh.pendingSubmissions(REGISTRY_REPO);
+		const repoKey = result.repo.toLowerCase();
+		const takenSlugs = [
+			...registry.map((e) => e.slug),
+			...[...pending].filter(([, repo]) => repo.toLowerCase() !== repoKey).map(([slug]) => slug)
+		];
 		result.derived_slug = deriveSlug(result.repo);
 		const slug = assignSlug(result.repo, meta.owner, takenSlugs);
 		const co = await cloneRepo(result.repo);

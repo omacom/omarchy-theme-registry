@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +16,9 @@ export const CDN_BASE_URL = (process.env.CDN_BASE_URL ?? 'https://cdn.themes.oma
 	/\/$/,
 	''
 );
+
+/** This repository on GitHub: where submissions, their pull requests and notices live. */
+export const REGISTRY_REPO = process.env.GITHUB_REPOSITORY ?? 'omacom/omarchy-theme-registry';
 
 /** The marketplace site, for links in the build digest. */
 export const SITE_URL = (process.env.SITE_URL ?? 'https://themes.omarchy.org').replace(/\/$/, '');
@@ -50,6 +54,27 @@ export async function fetchPublishedCatalog(): Promise<{
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * The code a validation report depends on: the validator modules `validateTheme` runs and the
+ * schema with its mirrored Omarchy constants. The build keeps a cached report only while this is
+ * unchanged, so a rule change (or a fixed false positive) reaches every theme on the next build,
+ * not only those whose artist happens to push.
+ */
+const VALIDATION_SOURCES = [
+	'packages/validator/src/validate.ts',
+	'packages/validator/src/inspect.ts',
+	'packages/validator/src/palette.ts',
+	'packages/validator/src/slug.ts',
+	'packages/schema/src/constants.ts',
+	'packages/schema/src/index.ts'
+];
+
+export async function validatorVersion(): Promise<string> {
+	const hash = createHash('sha256');
+	for (const f of VALIDATION_SOURCES) hash.update(f).update(await readFile(join(ROOT, f)));
+	return hash.digest('hex').slice(0, 16);
 }
 
 export function githubToken(): string | undefined {

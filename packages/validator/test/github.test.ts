@@ -108,3 +108,25 @@ describe('GithubClient.repos', () => {
 		expect(s.meta.pushedAt).toBe('2026-08-01T00:00:00Z');
 	});
 });
+
+describe('GithubClient.pendingSubmissions', () => {
+	it('reads the entry of every open submit/<slug> pull request', async () => {
+		const entry = (repo: string) => ({
+			content: Buffer.from(JSON.stringify({ slug: 'x', repo })).toString('base64')
+		});
+		const fetchImpl = (async (url: string) => {
+			const path = new URL(url).pathname + new URL(url).search;
+			if (path.startsWith('/repos/o/r/pulls'))
+				return Response.json([
+					{ head: { ref: 'submit/nord' } },
+					{ head: { ref: 'fix-typo' } },
+					{ head: { ref: 'submit/gone' } }
+				]);
+			if (path === '/repos/o/r/contents/themes/nord.json?ref=submit%2Fnord')
+				return Response.json(entry('https://github.com/a/omarchy-nord-theme'));
+			return new Response('{}', { status: 404 });
+		}) as typeof fetch;
+		const pending = await new GithubClient({ token: 't', fetchImpl }).pendingSubmissions('o/r');
+		expect([...pending]).toEqual([['nord', 'https://github.com/a/omarchy-nord-theme']]);
+	});
+});

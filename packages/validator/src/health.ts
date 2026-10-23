@@ -55,16 +55,30 @@ export type HealthAction =
 
 const key = (repo: string) => repo.toLowerCase();
 
+/**
+ * Problems only a maintainer can fix: the repository was replaced or never pinned, or the
+ * registry's install name collides (renaming the repo does not change a listed theme's slug).
+ * Artists are not asked to fix these; they show in the build report for maintainers.
+ */
+export const MAINTAINER_CODES: ReadonlySet<string> = new Set([
+	'REPO_REPLACED',
+	'REPO_UNPINNED',
+	'SLUG_BUILTIN',
+	'SLUG_TAKEN'
+]);
+
 /** `PREVIEW_MISSING: No preview…` or `PALETTE_INCOMPLETE colors.toml: …` → `PREVIEW_MISSING`. */
 export function errorCode(line: string): string {
 	return /^[A-Z][A-Z0-9_]+/.exec(line)?.[0] ?? line;
 }
 
 /**
- * The build adds PREVIEW_UNRENDERABLE whenever it has no preview to render; when a preview error
- * already says why, it only repeats it.
+ * The errors an artist can act on. Maintainer-only problems are left out, and so is
+ * PREVIEW_UNRENDERABLE when a preview error already says why (the build adds it whenever it has
+ * no preview to render).
  */
-export function explainedErrors(errors: string[]): string[] {
+export function explainedErrors(all: string[]): string[] {
+	const errors = all.filter((e) => !MAINTAINER_CODES.has(errorCode(e)));
 	const codes = errors.map(errorCode);
 	const explained = codes.some((c) => c !== 'PREVIEW_UNRENDERABLE' && /^(PREVIEW_|IMAGE_)/.test(c));
 	return explained ? errors.filter((e) => errorCode(e) !== 'PREVIEW_UNRENDERABLE') : errors;
@@ -126,6 +140,8 @@ export function planHealth(input: HealthInput): HealthAction[] {
 	);
 	for (const theme of broken) {
 		const codes = codesOf(theme);
+		// Out only for reasons a maintainer has to fix: nothing to ask of the artist.
+		if (!codes.length) continue;
 		const issue = byRepo.get(key(theme.repo));
 		if (issue) {
 			const same = issue.lastCodes !== null && issue.lastCodes.join(',') === codes.join(',');

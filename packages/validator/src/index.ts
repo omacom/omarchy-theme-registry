@@ -46,6 +46,7 @@ export {
 	errorCode,
 	healthMarker,
 	BROKEN_LABEL,
+	MAINTAINER_CODES,
 	type BrokenTheme,
 	type HealthAction,
 	type HealthInput,

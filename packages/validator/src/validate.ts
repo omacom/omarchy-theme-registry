@@ -107,7 +107,10 @@ export function repoFindings(
 	if (meta.isArchived)
 		r.warn('REPO_ARCHIVED', 'Repository is archived; it still installs, but nobody maintains it.');
 	if (meta.movedTo)
-		r.warn('REPO_MOVED', `Repository has moved to ${meta.movedTo}; update the registry entry.`);
+		r.warn(
+			'REPO_MOVED',
+			`Repository has moved to ${meta.movedTo}; the registry follows it to the new address.`
+		);
 	if (meta.sizeKb * 1024 > LIMITS.repoSizeBytes)
 		r.error(
 			'REPO_TOO_LARGE',
@@ -140,10 +143,14 @@ export async function validateTheme(opts: ValidateOptions): Promise<ValidationRe
 			`Repository name gives the install name "${slug}", which Omarchy refuses. It must match ^[a-z0-9_][a-z0-9._+-]*$ (rename the repo).`
 		);
 	} else {
+		// A listed theme keeps its slug whatever the repo is called, so only a maintainer can fix it.
+		const listed = opts.expectedRepoId !== undefined;
 		if ((BUILTIN_THEMES as readonly string[]).includes(slug))
 			r.error(
 				'SLUG_BUILTIN',
-				`"${slug}" is a built-in Omarchy theme name; a community theme cannot shadow it. Rename the repo.`
+				listed
+					? `"${slug}" is now a built-in Omarchy theme name; a maintainer must give this theme a different install name.`
+					: `"${slug}" is a built-in Omarchy theme name; a community theme cannot shadow it. Rename the repo.`
 			);
 		if (taken.has(slug))
 			r.error(

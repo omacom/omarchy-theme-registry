@@ -26,6 +26,7 @@ import {
 	OMARCHY_MIN_VERSION,
 	type CatalogMinTheme,
 	type CatalogTheme as CatalogThemeT,
+	type Finding,
 	type RegistryEntry,
 	type ValidationReport
 } from '@omarchy-themes/schema';
@@ -57,6 +58,7 @@ import {
 	probeImage,
 	processPreview,
 	readJsonOr,
+	validatorVersion,
 	writeJson
 } from './lib.ts';
 
@@ -71,6 +73,8 @@ const OUT = join(DIST_DIR, 'v1');
 
 interface CacheRecord {
 	sha: string;
+	/** `validatorVersion()` the report was made with; a record from other code is rebuilt */
+	validator?: string;
 	report: ValidationReport;
 	preview: {
 		sha: string;
@@ -95,6 +99,7 @@ const registry = await loadRegistry();
 const overrides = await loadOverrides();
 const gh = new GithubClient({ token: githubToken() });
 const now = new Date().toISOString();
+const VALIDATOR = await validatorVersion();
 
 await mkdir(CACHE_DIR, { recursive: true });
 await mkdir(PREVIEW_CACHE, { recursive: true });
@@ -145,6 +150,9 @@ async function renderPreview(
 	}
 }
 
+/** `CODE path: message`, as the report and the artist notices read it. */
+const findingLine = (e: Finding) => `${e.code}${e.path ? ` ${e.path}` : ''}: ${e.message}`;
+
 async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 	const { slug } = entry;
 	const hiddenReason = overrides.hidden[slug];
@@ -185,13 +193,12 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 
 	let record: CacheRecord;
 	const takenSlugs = allSlugs.filter((s) => s !== slug);
-	// A record written before `installed_files` existed has to be rebuilt from a fresh clone.
-	const cachedFacts = cached?.report.facts as Partial<ValidationReport['facts']> | undefined;
+	// Same commit and same validation code: the cached report still holds.
 	if (
 		cached &&
 		cached.sha === sha &&
+		cached.validator === VALIDATOR &&
 		cached.preview &&
-		cachedFacts?.installed_files &&
 		(await exists(join(PREVIEW_CACHE, slug, sha, '1200.webp')))
 	) {
 		record = cached;
@@ -208,6 +215,14 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 		record.report.ok = record.report.errors.length === 0;
 	} else if (noClone) {
 		return unreachable('--no-clone');
+	} else if (repoFindings(meta, entry.repo_id ?? null).errors.length) {
+		// Private, too large or replaced: GitHub's metadata already says so, no need to clone it.
+		if (cached?.lastGood) {
+			delete cached.lastGood;
+			await writeJson(cachePath, cached);
+		}
+		const errors = repoFindings(meta, entry.repo_id ?? null).errors.map(findingLine);
+		return { slug, status: 'excluded', reason: 'validation', errors };
 	} else {
 		log(`  clone ${slug} @ ${sha.slice(0, 7)}`);
 		let co: Awaited<ReturnType<typeof cloneRepo>>;
@@ -232,7 +247,13 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 					? join(co.dir, report.facts.preview_path)
 					: null;
 			const preview = await renderPreview(slug, sha, previewAbs);
-			record = { sha, report, preview, ...(cached?.lastGood ? { lastGood: cached.lastGood } : {}) };
+			record = {
+				sha,
+				validator: VALIDATOR,
+				report,
+				preview,
+				...(cached?.lastGood ? { lastGood: cached.lastGood } : {})
+			};
 		} finally {
 			await co.cleanup();
 		}
@@ -249,7 +270,7 @@ async function buildOne(entry: RegistryEntry): Promise<Outcome> {
 		// The registry entry stays, so the theme returns on the first build it passes.
 		delete record.lastGood;
 		await writeJson(cachePath, record);
-		const errors = blocking.map((e) => `${e.code}${e.path ? ` ${e.path}` : ''}: ${e.message}`);
+		const errors = blocking.map(findingLine);
 		return { slug, status: 'excluded', reason: 'validation', errors };
 	}
 
