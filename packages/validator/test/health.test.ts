@@ -24,7 +24,7 @@ const broken = (slug: string, errors: string[], over: Partial<BrokenTheme> = {})
 const input = (over: Partial<HealthInput>): HealthInput => ({
 	broken: [],
 	listed: [],
-	openIssues: [],
+	issues: [],
 	submissionIssues: new Map(),
 	maxNew: 10,
 	siteUrl: 'https://themes.test',
@@ -56,7 +56,7 @@ describe('planHealth', () => {
 		const actions = planHealth(
 			input({
 				broken: [broken('dune', [PREVIEW])],
-				openIssues: [{ number: 12, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'] }]
+				issues: [{ number: 12, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'], open: true }]
 			})
 		);
 		expect(actions).toEqual([]);
@@ -66,7 +66,7 @@ describe('planHealth', () => {
 		const [a] = planHealth(
 			input({
 				broken: [broken('dune', [PREVIEW, PALETTE])],
-				openIssues: [{ number: 12, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'] }]
+				issues: [{ number: 12, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'], open: true }]
 			})
 		);
 		expect(a).toMatchObject({ kind: 'update', issue: 12 });
@@ -78,7 +78,7 @@ describe('planHealth', () => {
 		const [a] = planHealth(
 			input({
 				listed: [{ slug: 'dune', repo: repo('dune') }],
-				openIssues: [{ number: 12, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'] }]
+				issues: [{ number: 12, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'], open: true }]
 			})
 		);
 		expect(a).toMatchObject({ kind: 'resolve', issue: 12, slug: 'dune' });
@@ -96,12 +96,52 @@ describe('planHealth', () => {
 		expect(actions.map((a) => a.slug)).toEqual(['zzz', 'aaa']);
 	});
 
+	it('stays quiet on a closed issue while the problems are the same', () => {
+		const actions = planHealth(
+			input({
+				broken: [broken('dune', [PREVIEW])],
+				issues: [{ number: 40, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'], open: false }],
+				submissionIssues: new Map([[repo('dune'), 12]])
+			})
+		);
+		expect(actions).toEqual([]);
+	});
+
+	it('reopens a closed issue when the problems change', () => {
+		const [a] = planHealth(
+			input({
+				broken: [broken('dune', [PALETTE])],
+				issues: [{ number: 40, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'], open: false }]
+			})
+		);
+		expect(a).toMatchObject({ kind: 'reopen', issue: 40 });
+		expect(a!.body).toContain('changed');
+	});
+
+	it('prefers the open issue when a repo has an open and a closed one', () => {
+		const actions = planHealth(
+			input({
+				listed: [{ slug: 'dune', repo: repo('dune') }],
+				issues: [
+					{ number: 50, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'], open: false },
+					{ number: 12, repo: repo('dune'), lastCodes: ['PREVIEW_MISSING'], open: true }
+				]
+			})
+		);
+		expect(actions).toMatchObject([{ kind: 'resolve', issue: 12 }]);
+	});
+
 	it('matches repositories regardless of case', () => {
 		const actions = planHealth(
 			input({
 				broken: [broken('dune', [PREVIEW])],
-				openIssues: [
-					{ number: 12, repo: repo('dune').toUpperCase(), lastCodes: ['PREVIEW_MISSING'] }
+				issues: [
+					{
+						number: 12,
+						repo: repo('dune').toUpperCase(),
+						lastCodes: ['PREVIEW_MISSING'],
+						open: true
+					}
 				]
 			})
 		);

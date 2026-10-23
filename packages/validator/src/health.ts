@@ -5,6 +5,10 @@
  * One issue per broken theme carries the conversation: the theme's submission issue when it has
  * one (reopened), otherwise a new issue. Either is labelled `theme-broken` while the theme is out
  * and closed once it is back. A new comment is posted only when the problems change.
+ *
+ * Someone may close that issue while the theme is still out. It keeps its label, so it stays the
+ * theme's issue: nothing is posted while the problems are the same, it is reopened when they
+ * change, and it is unlabelled once the theme is back. Otherwise every build would notify anew.
  */
 
 export const BROKEN_LABEL = 'theme-broken';
@@ -27,14 +31,15 @@ export interface HealthIssue {
 	repo: string;
 	/** error codes named by the last notice on it, or null when there is none */
 	lastCodes: string[] | null;
+	open: boolean;
 }
 
 export interface HealthInput {
 	broken: BrokenTheme[];
 	/** themes listed in this build */
 	listed: { slug: string; repo: string }[];
-	/** open issues labelled `theme-broken` */
-	openIssues: HealthIssue[];
+	/** issues labelled `theme-broken`, open or closed */
+	issues: HealthIssue[];
 	/** submission issue per repo URL, for themes that came through the form */
 	submissionIssues: Map<string, number>;
 	/** at most this many themes get a first notice per run; the rest wait for the next build */
@@ -104,7 +109,13 @@ export function noticeBody(theme: BrokenTheme, codes: string[], first: boolean):
 
 export function planHealth(input: HealthInput): HealthAction[] {
 	const actions: HealthAction[] = [];
-	const open = new Map(input.openIssues.map((i) => [key(i.repo), i]));
+	// One issue per repo: an open one over a closed one, then the newest.
+	const byRepo = new Map<string, HealthIssue>();
+	for (const i of input.issues) {
+		const prev = byRepo.get(key(i.repo));
+		const better = !prev || (i.open === prev.open ? i.number > prev.number : i.open);
+		if (better) byRepo.set(key(i.repo), i);
+	}
 	let fresh = 0;
 
 	// Themes with a submission issue first: those artists asked to be listed.
@@ -115,12 +126,12 @@ export function planHealth(input: HealthInput): HealthAction[] {
 	);
 	for (const theme of broken) {
 		const codes = codesOf(theme);
-		const issue = open.get(key(theme.repo));
+		const issue = byRepo.get(key(theme.repo));
 		if (issue) {
 			const same = issue.lastCodes !== null && issue.lastCodes.join(',') === codes.join(',');
 			if (!same)
 				actions.push({
-					kind: 'update',
+					kind: issue.open ? 'update' : 'reopen',
 					slug: theme.slug,
 					issue: issue.number,
 					body: noticeBody(theme, codes, issue.lastCodes === null)
@@ -147,7 +158,7 @@ export function planHealth(input: HealthInput): HealthAction[] {
 	}
 
 	const listed = new Map(input.listed.map((t) => [key(t.repo), t.slug]));
-	for (const issue of input.openIssues) {
+	for (const issue of byRepo.values()) {
 		const slug = listed.get(key(issue.repo));
 		if (slug === undefined) continue;
 		actions.push({

@@ -65,6 +65,7 @@ async function all<T>(path: string): Promise<T[]> {
 interface Issue {
 	number: number;
 	body: string | null;
+	state: 'open' | 'closed';
 	labels: { name: string }[];
 	pull_request?: unknown;
 }
@@ -111,14 +112,20 @@ const repoOfIssue = (issue: Issue): string | null => {
 	return (slug && bySlug.get(slug)?.repo) || null;
 };
 
-const openIssues: HealthIssue[] = [];
-for (const issue of await all<Issue>(`/repos/${REPO}/issues?labels=${BROKEN_LABEL}&state=open`)) {
+// Closed ones too: an issue someone closed while the theme is still out is still its issue.
+const issues: HealthIssue[] = [];
+for (const issue of await all<Issue>(`/repos/${REPO}/issues?labels=${BROKEN_LABEL}&state=all`)) {
 	if (issue.pull_request) continue;
 	const repo = repoOfIssue(issue);
 	if (!repo) continue;
 	const comments = await all<{ body: string }>(`/repos/${REPO}/issues/${issue.number}/comments`);
 	const text = [issue.body ?? '', ...comments.map((c) => c.body)].join('\n');
-	openIssues.push({ number: issue.number, repo, lastCodes: codesFromMarker(text) });
+	issues.push({
+		number: issue.number,
+		repo,
+		lastCodes: codesFromMarker(text),
+		open: issue.state === 'open'
+	});
 }
 
 // The published submission for a repo, or its latest one.
@@ -137,14 +144,14 @@ for (const issue of submissions) {
 const actions = planHealth({
 	broken,
 	listed: catalog.themes,
-	openIssues,
+	issues,
 	submissionIssues,
 	maxNew: Number(args['max-new']),
 	siteUrl: SITE_URL
 });
 
 log(
-	`${broken.length} themes not listed because of their repository; ${openIssues.length} open ${BROKEN_LABEL} issues; ${actions.length} actions`
+	`${broken.length} themes not listed because of their repository; ${issues.length} ${BROKEN_LABEL} issues; ${actions.length} actions`
 );
 
 // ── post ─────────────────────────────────────────────────────────────────

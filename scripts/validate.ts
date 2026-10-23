@@ -3,7 +3,7 @@
  *
  *   node scripts/validate.ts https://github.com/owner/omarchy-x-theme   # any repo, listed or not
  *   node scripts/validate.ts x                                            # a registry slug
- *   node scripts/validate.ts --changed                                    # entries changed vs origin/master (CI)
+ *   node scripts/validate.ts --changed                                    # entries changed vs origin/master, and overrides/ (CI)
  *   node scripts/validate.ts --json                                       # machine-readable output
  *
  * Exit code 1 if any theme has errors.
@@ -20,7 +20,7 @@ import {
 	validateTheme
 } from '@omarchy-themes/validator';
 import type { ValidationReport } from '@omarchy-themes/schema';
-import { githubToken, loadRegistry, log, probeImage } from './lib.ts';
+import { githubToken, loadOverrides, loadRegistry, log, probeImage } from './lib.ts';
 
 const exec = promisify(execFile);
 const args = process.argv.slice(2);
@@ -30,8 +30,33 @@ const targets = args.filter((a) => !a.startsWith('--'));
 const registry = await loadRegistry();
 const bySlug = new Map(registry.map((e) => [e.slug, e]));
 
+// The build fails on overrides it cannot parse and silently ignores a slug it does not know, so
+// catch both before they merge.
+async function overrideProblems(): Promise<string[]> {
+	let overrides;
+	try {
+		overrides = await loadOverrides();
+	} catch (e) {
+		return [`overrides/ does not parse: ${(e as Error).message}`];
+	}
+	const unknown = (file: string, slugs: string[]) =>
+		slugs.filter((s) => !bySlug.has(s)).map((s) => `${file}: \`${s}\` is not in themes/`);
+	return [
+		...unknown('featured.json', overrides.featured),
+		...unknown('hidden.json', Object.keys(overrides.hidden))
+	];
+}
+
+let overridesOk = true;
 const repos: { repo: string; slug: string | null }[] = [];
 if (args.includes('--changed')) {
+	const problems = await overrideProblems();
+	if (problems.length) {
+		overridesOk = false;
+		if (!json) console.log(`## ❌ overrides/\n\n${problems.map((p) => `- ${p}`).join('\n')}\n`);
+		else log(problems.join('\n'));
+	}
+
 	const { stdout } = await exec('git', [
 		'diff',
 		'--name-only',
@@ -58,8 +83,8 @@ if (args.includes('--changed')) {
 	}
 }
 if (!repos.length) {
-	log('Nothing to validate.');
-	process.exit(0);
+	log('No theme entries to validate.');
+	process.exit(overridesOk ? 0 : 1);
 }
 
 const gh = new GithubClient({ token: githubToken() });
@@ -96,4 +121,4 @@ for (const { repo, slug } of repos) {
 }
 
 if (json) console.log(JSON.stringify(results, null, 2));
-process.exit(results.every((r) => r.report.ok) ? 0 : 1);
+process.exit(overridesOk && results.every((r) => r.report.ok) ? 0 : 1);

@@ -355,6 +355,9 @@ const report = {
 		])
 	),
 	problems: outcomes.filter((o) => o.status !== 'ok' && o.status !== 'hidden'),
+	hidden: Object.fromEntries(
+		outcomes.flatMap((o) => (o.status === 'hidden' ? [[o.slug, o.reason]] : []))
+	),
 	warnings: Object.fromEntries(
 		outcomes.flatMap((o) => (o.status === 'ok' && o.warnings ? [[o.slug, o.theme.warnings]] : []))
 	)
@@ -388,7 +391,8 @@ if (!only) {
 	});
 	const dropReasons: Record<string, string> = {};
 	for (const o of outcomes) {
-		if (o.status === 'hidden') dropReasons[o.slug] = `hidden by a curator: ${o.reason}`;
+		// The digest is a public issue comment; the curator's reason stays in report.json.
+		if (o.status === 'hidden') dropReasons[o.slug] = 'hidden by a curator';
 		else if (o.status === 'missing') dropReasons[o.slug] = 'repository is missing or private';
 		else if (o.status === 'excluded')
 			dropReasons[o.slug] = o.errors.length ? o.errors.slice(0, 2).join('; ') : o.reason;

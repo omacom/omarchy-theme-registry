@@ -20,12 +20,13 @@ permissions:
   issues: write
   pull-requests: write
 
-concurrency:
-  group: submission-${{ github.event.issue.number }}
-  cancel-in-progress: true
-
 jobs:
   submit:
+    # Job-level, so only runs that pass the `if` join the group: a plain comment on the issue
+    # (or the bot's own report comment) must not cancel a validation in progress.
+    concurrency:
+      group: submission-${{ github.event.issue.number }}
+      cancel-in-progress: true
     if: >-
       contains(github.event.issue.labels.*.name, 'submission') &&
       !contains(github.event.issue.labels.*.name, 'theme-broken') &&
