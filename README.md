@@ -2,6 +2,9 @@
 
 The list of community themes behind [themes.omarchy.org](https://themes.omarchy.org). Every theme here is a public GitHub repository that `omarchy theme install` can clone; this repo only records which ones are listed, checks them automatically, and publishes the catalog that the website reads.
 
+> [!NOTE]
+> themes.omarchy.org is not live yet, and `omarchy theme browse` and install-by-name are not in a released Omarchy. Until they ship, browse community themes at [omarchy.org/themes](https://omarchy.org/themes/) and install one from its repository URL with `omarchy theme install <git-repo-url>`.
+
 ## Submit your theme
 
 1. Make a theme. The [Omarchy manual](https://omarchy.org/manual/making-your-own-theme/) has the full guide; the short version is a public GitHub repo named `omarchy-<name>-theme` with `colors.toml`, a `backgrounds/` folder and a 16:9 `preview.png` at its root.
@@ -35,7 +38,7 @@ Everything comes from your repository, so keep it tidy there:
 
 ## Browse and install
 
-Browse at [themes.omarchy.org](https://themes.omarchy.org), or in Omarchy with `omarchy theme browse` (menu → Install → Style → Theme). Each theme page has the one-line install command:
+Once launched, browse at [themes.omarchy.org](https://themes.omarchy.org), or in Omarchy with `omarchy theme browse` (menu → Install → Style → Theme). Each theme page has the one-line install command:
 
 ```sh
 omarchy theme install <name>
